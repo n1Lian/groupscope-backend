@@ -14,6 +14,7 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Objects;
 
 import static org.groupscope.util.FunctionInfo.getCurrentMethodName;
 import static org.groupscope.util.ObjectUtil.isNull;
@@ -39,7 +40,7 @@ public class RefreshTokenService {
      */
     @Transactional
     public RefreshToken findByToken(String token) {
-        if(isNull(token)) {
+        if (isNull(token)) {
             log.error("Token string is null in " + getCurrentMethodName());
             return null;
         }
@@ -55,7 +56,7 @@ public class RefreshTokenService {
      */
     @Transactional
     public RefreshToken findByUserId(Long id) {
-        if(isNull(id)) {
+        if (isNull(id)) {
             log.error("User id is null in " + getCurrentMethodName());
             return null;
         }
@@ -95,12 +96,9 @@ public class RefreshTokenService {
         }
 
         RefreshToken token = refreshTokenRepository.save(refreshToken);
+        Objects.requireNonNull(token, "Refresh token is null")
 
-        if (token != null) {
-            return token;
-        } else {
-            throw new RuntimeException("Refresh token is null in " + getCurrentMethodName());
-        }
+        return token;
     }
 
     /**

@@ -66,7 +66,7 @@ public class Learner implements ObjectWithId {
                 "name='" + name + '\'' +
                 ", lastname='" + lastname + '\'' +
                 ", role='" + role + '\'' +
-                ", group=" + learningGroup +
+                ", group='" + learningGroup +
                 '}';
     }
 

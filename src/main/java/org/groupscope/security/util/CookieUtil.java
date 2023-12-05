@@ -11,6 +11,9 @@ public class CookieUtil {
                 .maxAge(duration)
                 .httpOnly(true)
                 .path("/")
+                .domain("localhost")
+                .sameSite("None")
+                .secure(true)
                 .build();
     }
 
@@ -25,7 +28,4 @@ public class CookieUtil {
                 .build();
     }
 
-    public HttpCookie deleteAccessTokenCookie() {
-        return ResponseCookie.from("accessToken", "").maxAge(0).httpOnly(true).path("/").build();
-    }
 }

@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import static java.util.Objects.requireNonNull;
+
 @Slf4j
 @Service
 public class FileManagerImpl implements FileManager {
@@ -30,93 +32,90 @@ public class FileManagerImpl implements FileManager {
 
     @Override
     public String createFolder(String path) throws IOException {
-        if(path != null) {
-            path = path.startsWith(rootPath) ? path : rootPath + path;
+        requireNonNull(path, "Path is null");
 
-            File uploadDir = null;
-            if(path.startsWith(rootPath)) {
-                uploadDir = new File(path);
-            } else {
-                uploadDir = new File(rootPath + path);
-            }
+        path = path.startsWith(rootPath) ? path : rootPath + path;
 
-            if (!uploadDir.exists()) {
-                boolean isCreate = uploadDir.mkdirs();
+        File uploadDir = null;
+        if (path.startsWith(rootPath)) {
+            uploadDir = new File(path);
+        } else {
+            uploadDir = new File(rootPath + path);
+        }
 
-                if(isCreate) {
-                    log.info("Create directory = " + path );
+        if (!uploadDir.exists()) {
+            boolean isCreate = uploadDir.mkdirs();
 
-                    return uploadDir.getAbsolutePath();
-                } else
-                    throw new IOException("Directory = "+ uploadDir.getAbsolutePath() + " has not created");
-            } else {
+            if (isCreate) {
+                log.info("Create directory = " + path);
+
                 return uploadDir.getAbsolutePath();
-            }
-        } else
-            throw new NullPointerException("Path is null");
+            } else
+                throw new IOException("Directory = " + uploadDir.getAbsolutePath() + " has not created");
+        } else {
+            return uploadDir.getAbsolutePath();
+        }
     }
 
     @Override
     public MultipartFile uploadFile(String path, MultipartFile file) throws IOException {
-        if(path != null && file != null) {
-            path = path.startsWith(rootPath) ? path : rootPath + path;
-            String createdPath = createFolder(path);
+        requireNonNull(path, "Path is null");
+        requireNonNull(file, "File is null");
 
-            file.transferTo(new File(createdPath + File.separator + file.getOriginalFilename()));
+        path = path.startsWith(rootPath) ? path : rootPath + path;
+        String createdPath = createFolder(path);
 
-            return null;
-        } else
-            throw new NullPointerException("Path or file is null: path = " + path + ", file = " + file);
+        file.transferTo(new File(createdPath + File.separator + file.getOriginalFilename()));
+        return file;
     }
 
     @Override
     public File findFile(String path, String name) {
-        if(path != null) {
-            path = path.startsWith(rootPath) ? path : rootPath + path;
-            File dir = new File(path);
+        requireNonNull(path, "Path is null");
 
-            if(!dir.exists()) {
-                return null;
-            }
+        path = path.startsWith(rootPath) ? path : rootPath + path;
+        File dir = new File(path);
 
-            return Arrays.stream(Objects.requireNonNull(dir.listFiles()))
-                    .filter(f -> f.getName().equals(name) && f.isFile())
-                    .findFirst()
-                    .orElse(null);
-        } else
-            throw new NullPointerException("Path is null");
+        if (!dir.exists()) {
+            return null;
+        }
+
+        return Arrays.stream(requireNonNull(dir.listFiles()))
+                .filter(f -> f.getName().equals(name) && f.isFile())
+                .findFirst()
+                .orElse(null);
+
     }
 
     @Override
     public List<File> findFilesByPath(String path) {
-        if(path != null) {
-            path = path.startsWith(rootPath) ? path : rootPath + path;
-            File dir = new File(path);
+        requireNonNull(path, "Path is null");
 
-            if(!dir.exists()) {
-                return null;
-            }
+        path = path.startsWith(rootPath) ? path : rootPath + path;
+        File dir = new File(path);
 
-            return Arrays.stream(Objects.requireNonNull(dir.listFiles()))
-                    .filter(File::isFile)
-                    .collect(Collectors.toList());
-        } else
-            throw new NullPointerException("Path is null");
+        if (!dir.exists()) {
+            return null;
+        }
+
+        return Arrays.stream(requireNonNull(dir.listFiles()))
+                .filter(File::isFile)
+                .collect(Collectors.toList());
     }
 
     @Override
     public List<byte[]> downloadFile(List<File> files) throws IOException {
         List<byte[]> bytesList = new ArrayList<>();
         try {
-            if(files != null) {
-                for (File file : files) {
-                    Path p = file.toPath();
-                    byte[] bytes = Files.readAllBytes(p);
+            requireNonNull(files, "List of files is null");
 
-                    bytesList.add(bytes);
-                }
-            } else
-                throw new NullPointerException("List of files is null");
+            for (File file : files) {
+                Path p = file.toPath();
+                byte[] bytes = Files.readAllBytes(p);
+
+                bytesList.add(bytes);
+            }
+
         } catch (MalformedURLException e) {
             throw new RuntimeException(e);
         }
@@ -125,42 +124,41 @@ public class FileManagerImpl implements FileManager {
 
     @Override
     public void deleteFile(String path, String name) {
-        if(path != null && name != null) {
-            path = path.startsWith(rootPath) ? path : rootPath + path;
+        requireNonNull(path, "Path is null");
+        requireNonNull(name, "Name is null");
 
-            File file = new File(path + File.separator + name);
+        path = path.startsWith(rootPath) ? path : rootPath + path;
 
-            if(file.exists()) {
-                log.info("Delete: path = " + file.getAbsolutePath() + " : " + file.delete());
-            } else
-                throw new IllegalArgumentException("File does not exist: path = " + file.getAbsolutePath());
+        File file = new File(path + File.separator + name);
+
+        if (file.exists()) {
+            log.info("Delete: path = " + file.getAbsolutePath() + " : " + file.delete());
         } else
-            throw new NullPointerException("Path or name is null: path = " + path + ", name = " + name);
+            throw new IllegalArgumentException("File does not exist: path = " + file.getAbsolutePath());
     }
 
     @Override
     public void deleteFolder(String path) throws IOException {
-        if(path != null) {
-            path = path.startsWith(rootPath) ? path : rootPath + path;
-            File dir = new File(path);
+        requireNonNull(path, "Path is null");
 
-            if(dir.exists()) {
-                clearDirectory(dir);
-                log.info("Delete: path = " + dir.getAbsolutePath() + " : " + dir.delete());
-            } else
-                throw new IllegalArgumentException("Directory does not exist: path = " + path);
+        path = path.startsWith(rootPath) ? path : rootPath + path;
+        File dir = new File(path);
+
+        if (dir.exists()) {
+            clearDirectory(dir);
+            log.info("Delete: path = " + dir.getAbsolutePath() + " : " + dir.delete());
         } else
-            throw new NullPointerException("Path is null");
+            throw new IllegalArgumentException("Directory does not exist: path = " + path);
     }
 
     private String createRootFolder(String rootPath, String defaultPath) {
-        if(rootPath != null) {
+        if (rootPath != null) {
             File uploadDir = new File(rootPath);
 
             if (!uploadDir.exists()) {
                 boolean isCreate = uploadDir.mkdirs();
 
-                if(isCreate) {
+                if (isCreate) {
                     log.info("Create directory = " + rootPath);
 
                     return uploadDir.getAbsolutePath();
@@ -185,7 +183,7 @@ public class FileManagerImpl implements FileManager {
         if (!directory.isDirectory())
             throw new IllegalArgumentException("File is not directory");
 
-        for (File file : Objects.requireNonNull(directory.listFiles())) {
+        for (File file : requireNonNull(directory.listFiles())) {
             if (file.isHidden() || file.isAbsolute())
                 continue;
             else if (file.isDirectory()) {

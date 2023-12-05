@@ -24,10 +24,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.Collections;
+import java.util.Objects;
+
+import static java.util.Objects.requireNonNull;
 
 @Service
 @Slf4j
-public class OAuth2UserService extends DefaultOAuth2UserService  {
+public class OAuth2UserService extends DefaultOAuth2UserService {
 
     private final UserService userService;
 
@@ -51,30 +54,30 @@ public class OAuth2UserService extends DefaultOAuth2UserService  {
 
     @Transactional
     public User loginOAuthGoogle(OAuth2Request request) {
-        if(request.getIdToken() != null) {
-            RegistrationRequest registrationRequest = verifyIDToken(request.getIdToken());
-            if (registrationRequest == null) {
-                throw new IllegalArgumentException("Token not verified");
-            }
-            User user = new User();
-            user.setLogin(registrationRequest.getLogin());
-            registrationRequest.setInviteCode(request.getInviteCode());
-            registrationRequest.setGroupName(request.getGroupName());
+        requireNonNull(request, "Request is null");
+        requireNonNull(request.getIdToken(), "IdToken is null");
 
-            User foundedUser = userService.findByLogin(user.getLogin());
+        RegistrationRequest registrationRequest = verifyIDToken(request.getIdToken());
+        if (registrationRequest == null) {
+            throw new IllegalArgumentException("Token not verified");
+        }
+        User user = new User();
+        user.setLogin(registrationRequest.getLogin());
+        registrationRequest.setInviteCode(request.getInviteCode());
+        registrationRequest.setGroupName(request.getGroupName());
 
-            if(foundedUser == null) {
-                foundedUser = userService.saveUser(user, registrationRequest, Provider.GOOGLE);
-            }
+        User foundedUser = userService.findByLogin(user.getLogin());
 
-            Hibernate.initialize(foundedUser.getLearner().getGrades());
+        if (foundedUser == null) {
+            foundedUser = userService.saveUser(user, registrationRequest, Provider.GOOGLE);
+        }
 
-            if(foundedUser.getLearner().getLearningGroup() != null)
-                AssignmentManagerDAOImpl.removeDuplicates(foundedUser.getLearner().getLearningGroup().getSubjects());
+        Hibernate.initialize(foundedUser.getLearner().getGrades());
 
-            return foundedUser;
-        } else
-            throw new NullPointerException("IdToken is null");
+        if (foundedUser.getLearner().getLearningGroup() != null)
+            AssignmentManagerDAOImpl.removeDuplicates(foundedUser.getLearner().getLearningGroup().getSubjects());
+
+        return foundedUser;
     }
 
     private RegistrationRequest verifyIDToken(String idToken) {
@@ -90,7 +93,7 @@ public class OAuth2UserService extends DefaultOAuth2UserService  {
             request.setLearnerLastname((String) payload.get("family_name"));
             request.setLogin(payload.getEmail());
 
-            if(verifyMailDomain(request.getLogin()))
+            if (verifyMailDomain(request.getLogin()))
                 return request;
             else
                 return null;
@@ -100,7 +103,7 @@ public class OAuth2UserService extends DefaultOAuth2UserService  {
             return null;
         }
     }
-    
+
     private boolean verifyMailDomain(String mail) {
         return mail.endsWith("@nure.ua");
     }
