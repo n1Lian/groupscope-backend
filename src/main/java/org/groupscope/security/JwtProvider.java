@@ -15,10 +15,19 @@ import java.util.Date;
 @Slf4j
 public class JwtProvider {
     @Value("${jwt.secret}")
-    private String jwtSecret;
+    public String jwtSecret;
+
+    public String getJwtSecret() {
+        return jwtSecret;
+    }
+
+    public Long getJwtTokenDurationMs() {
+        return jwtTokenDurationMs;
+    }
 
     @Value("${jwt.lifetime.accessToken}")
     private Long jwtTokenDurationMs;
+
 
     public String generateToken(String login) {
         long jwtLifetime = Duration.ofMillis(jwtTokenDurationMs).toDays();
