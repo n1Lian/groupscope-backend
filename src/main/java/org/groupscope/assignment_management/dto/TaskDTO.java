@@ -124,11 +124,11 @@ public class TaskDTO {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         TaskDTO taskDTO = (TaskDTO) o;
-        return Objects.equals(name, taskDTO.name) && type == taskDTO.type && Objects.equals(info, taskDTO.info) && Objects.equals(deadline, taskDTO.deadline);
+        return Objects.equals(name, taskDTO.name) && type == taskDTO.type && Objects.equals(info, taskDTO.info) && Objects.equals(deadline, taskDTO.deadline) && Objects.equals(maxMark, taskDTO.maxMark);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, type, info, deadline);
+        return Objects.hash(name, type, info, deadline, maxMark);
     }
 }
