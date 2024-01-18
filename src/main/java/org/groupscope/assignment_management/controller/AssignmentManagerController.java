@@ -428,7 +428,7 @@ public class AssignmentManagerController {
     }
 
     @PostMapping("/group/editor")
-    public ResponseEntity<HttpStatus> processEditor(@RequestBody LearnerDTO learnerDTO,
+    public ResponseEntity<HttpStatus> processEditor(@RequestParam(name = "id") Long learnerId,
                                                     @RequestParam(name = "active") Boolean active) {
         try {
             User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -437,7 +437,7 @@ public class AssignmentManagerController {
 
             LearningRole userRole = user.getLearner().getRole();
             if(hasAccess(userRole, LearningRole.HEADMAN)) {
-                assignmentManagerService.manageEditorRole(learnerDTO.getId(), user.getLearner().getLearningGroup(), active);
+                assignmentManagerService.manageEditorRole(learnerId, user.getLearner().getLearningGroup(), active);
                 return ResponseEntity.ok().build();
             } else {
                 return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
