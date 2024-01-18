@@ -96,7 +96,7 @@ public class RefreshTokenService {
         }
 
         RefreshToken token = refreshTokenRepository.save(refreshToken);
-        Objects.requireNonNull(token, "Refresh token is null")
+        Objects.requireNonNull(token, "Refresh token is null");
 
         return token;
     }

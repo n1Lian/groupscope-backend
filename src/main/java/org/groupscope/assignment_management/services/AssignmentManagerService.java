@@ -15,7 +15,7 @@ public interface AssignmentManagerService {
 
     Subject getSubjectByName(String subjectName, LearningGroup group);
 
-    List<SubjectDTO> getAllSubjectsByGroup(LearningGroup group);
+    List<SubjectDTO> getAllSubjectDTOsByGroup(LearningGroup group, Learner learner);
 
     Subject updateSubject(SubjectDTO subjectDTO, LearningGroup group);
 
@@ -24,7 +24,7 @@ public interface AssignmentManagerService {
     ///////////////////////////////////////////////////
     Task addTask(TaskDTO taskDTO, String subjectName, LearningGroup group);
 
-    List<TaskDTO> getAllTasksOfSubject(String subjectName, LearningGroup group);
+    List<TaskDTO> getAllTaskDTOsOfSubject(Long id, LearningGroup group, Learner learner);
 
     Task getTaskById(Long id);
 
@@ -68,6 +68,6 @@ public interface AssignmentManagerService {
 
     LearningGroup getGroupByInviteCode(String inviteCode);
 
-    LearningGroup updateHeadmanOfGroup(LearningGroup group, LearnerDTO learnerDTO);
+    LearningGroup updateHeadmanOfGroup(LearningGroup group, Long learnerId);
 
 }

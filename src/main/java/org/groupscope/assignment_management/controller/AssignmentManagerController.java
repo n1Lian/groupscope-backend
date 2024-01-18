@@ -62,7 +62,10 @@ public class AssignmentManagerController {
             HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest();
             logRequestMapping(user, request);
 
-            List<SubjectDTO> subjectsDto = assignmentManagerService.getAllSubjectsByGroup(user.getLearner().getLearningGroup());
+            List<SubjectDTO> subjectsDto = assignmentManagerService.getAllSubjectDTOsByGroup(
+                    user.getLearner().getLearningGroup(),
+                    user.getLearner()
+            );
 
             return ResponseEntity.ok(subjectsDto);
         } catch (NullPointerException | IllegalArgumentException e) {
@@ -146,14 +149,18 @@ public class AssignmentManagerController {
         }
     }
 
-    @GetMapping("/subject/{subject-name}/task/all")
-    public ResponseEntity<List<TaskDTO>> getTasksOfSubject(@PathVariable("subject-name") String subjectName) {
+    @GetMapping("/subject/task/all")
+    public ResponseEntity<List<TaskDTO>> getTasksOfSubject(@RequestParam("id") Long id) {
         try {
             User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
             HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest();
             logRequestMapping(user, request);
 
-            List<TaskDTO> tasks = assignmentManagerService.getAllTasksOfSubject(subjectName, user.getLearner().getLearningGroup());
+            List<TaskDTO> tasks = assignmentManagerService.getAllTaskDTOsOfSubject(
+                    id,
+                    user.getLearner().getLearningGroup(),
+                    user.getLearner()
+            );
 
             return ResponseEntity.ok(tasks);
         } catch (NullPointerException | IllegalArgumentException e) {
@@ -404,7 +411,9 @@ public class AssignmentManagerController {
 
             LearningRole userRole = user.getLearner().getRole();
             if(hasAccess(userRole, LearningRole.HEADMAN)) {
-                List<LearnerDTO> learnerDTOs = assignmentManagerService.getGradesOfSubjectFromGroup(subjectName, user.getLearner().getLearningGroup());
+                List<LearnerDTO> learnerDTOs = assignmentManagerService
+                        .getGradesOfSubjectFromGroup(subjectName, user.getLearner().getLearningGroup());
+
                 return ResponseEntity.ok(learnerDTOs);
             } else {
                 return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
@@ -443,7 +452,7 @@ public class AssignmentManagerController {
     }
 
     @PatchMapping("/group/headman")
-    public ResponseEntity<HttpStatus> updateHeadmanOfGroup(@RequestBody LearnerDTO learnerDTO) {
+    public ResponseEntity<HttpStatus> updateHeadmanOfGroup(@RequestParam(name = "id") Long learnerId) {
         try {
             User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
             HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest();
@@ -451,7 +460,7 @@ public class AssignmentManagerController {
 
             LearningRole userRole = user.getLearner().getRole();
             if(hasAccess(userRole, LearningRole.HEADMAN)) {
-                assignmentManagerService.updateHeadmanOfGroup(user.getLearner().getLearningGroup(), learnerDTO);
+                assignmentManagerService.updateHeadmanOfGroup(user.getLearner().getLearningGroup(), learnerId);
                 return ResponseEntity.ok().build();
             } else {
                 return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();

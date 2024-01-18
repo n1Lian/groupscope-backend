@@ -87,12 +87,14 @@ public class AssignmentManagerServiceImpl implements AssignmentManagerService {
     }
 
     @Override
-    public List<SubjectDTO> getAllSubjectsByGroup(LearningGroup group) {
+    public List<SubjectDTO> getAllSubjectDTOsByGroup(LearningGroup group, Learner learner) {
         requireNonNull(group, "Group doesnt exist");
+        requireNonNull(learner, "Learner is null");
+
         List<Subject> subjects = group.getSubjects();
         if (subjects != null)
             return subjects.stream()
-                    .map(SubjectDTO::from)
+                    .map(subject -> SubjectDTO.from(subject, learner.getGrades()))
                     .collect(Collectors.toList());
         else
             return new ArrayList<>();
@@ -125,17 +127,25 @@ public class AssignmentManagerServiceImpl implements AssignmentManagerService {
     }
 
     @Override
-    public List<TaskDTO> getAllTasksOfSubject(String subjectName, LearningGroup group) {
-        requireNonNull(subjectName, "Subject name is null");
+    public List<TaskDTO> getAllTaskDTOsOfSubject(Long subjectId, LearningGroup group, Learner learner) {
+        requireNonNull(subjectId, "Id is null");
         requireNonNull(group, "Learning group is null");
 
-        Subject subject = assignmentManagerDAO.findSubjectByNameAndGroupId(subjectName, group.getId());
+        Subject subject = assignmentManagerDAO.findSubjectById(subjectId);
 
-        requireNonNull(subject, "Subject not found with name: " + subjectName);
-        return subject.getTasks()
-                .stream()
-                .map(TaskDTO::from)
-                .collect(Collectors.toList());
+        requireNonNull(subject, "Subject not found with id: " + subjectId);
+
+        List<TaskDTO> dtoList = new ArrayList<>();
+
+        for(Task task : subject.getTasks()) {
+            Grade grade = assignmentManagerDAO.findGradeByLearnerAndTask(learner, task);
+
+            TaskDTO taskDTO = TaskDTO.from(task, grade);
+
+            dtoList.add(taskDTO);
+        }
+
+        return dtoList;
     }
 
     @Override
@@ -416,14 +426,13 @@ public class AssignmentManagerServiceImpl implements AssignmentManagerService {
 
     @Override
     @Transactional
-    public LearningGroup updateHeadmanOfGroup(LearningGroup group, LearnerDTO learnerDTO) {
+    public LearningGroup updateHeadmanOfGroup(LearningGroup group, Long learnerId) {
         requireNonNull(group, "learning group is null");
-        requireNonNull(learnerDTO, "LearnerDTO is null");
-
+        requireNonNull(learnerId, "LearnerDTO is null");
 
         Learner oldHeadman = group.getHeadmen();
-        Learner newHeadman = assignmentManagerDAO.findLearnersByNameAndLastname(learnerDTO.getName(), learnerDTO.getLastname());
-        requireNonNull(newHeadman, "Headman is null");
+        Learner newHeadman = assignmentManagerDAO.findLearnerById(learnerId);
+        requireNonNull(newHeadman, "Learner with id = " + learnerId + " not found");
 
         if (group.getLearners().contains(newHeadman)) {
             oldHeadman.setRole(LearningRole.STUDENT);

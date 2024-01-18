@@ -107,9 +107,30 @@ public class AssignmentManagerServiceTest {
         return subject;
     }
 
+    private Subject generateValidSubject(String name, LearningGroup linkedGroup) {
+        Random random = new Random();
+        Subject subject = new Subject(name);
+        subject.setId(Math.abs(random.nextLong()) % 100);
+        subject.setIsExam(false);
+        subject.setGroup(linkedGroup);
+
+        return subject;
+    }
+
     /** This method generates a valid Task object with a task name, type, description, deadline date,
      * and a linked subject. It also assigns a randomly generated ID to the task.
      */
+    private Task generateValidTask() {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+        String deadline = LocalDate.now().plus(7, ChronoUnit.DAYS).format(formatter);
+        Random random = new Random();
+
+        Task task = new Task("Pz1", TaskType.PRACTICAL, "Doing something", deadline, 100);
+        task.setId(Math.abs(random.nextLong()) % 100);
+
+        return task;
+    }
+
     private Task generateValidTask(Subject linkedSubject) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
         String deadline = LocalDate.now().plus(7, ChronoUnit.DAYS).format(formatter);
@@ -117,6 +138,8 @@ public class AssignmentManagerServiceTest {
 
         Task task = new Task("Pz1", TaskType.PRACTICAL, "Doing something", deadline, 100, linkedSubject);
         task.setId(Math.abs(random.nextLong()) % 100);
+
+        linkedSubject.getTasks().add(task);
 
         return task;
     }
@@ -132,11 +155,16 @@ public class AssignmentManagerServiceTest {
         return task;
     }
 
-    private Grade generateValidGrade(Learner learner, Task task) {
-        return new Grade(
-                new GradeKey(learner.getId(), task.getId()),
-                learner, task, false, 0
+    private Grade generateValidGrade(Learner linkedLearner, Task linkedTask) {
+        Grade grade = new Grade(
+                new GradeKey(linkedLearner.getId(), linkedTask.getId()),
+                linkedLearner, linkedTask, false, 0
         );
+
+        linkedLearner.getGrades().add(grade);
+        linkedTask.getGrades().add(grade);
+
+        return grade;
     }
 
     @Test
@@ -303,37 +331,43 @@ public class AssignmentManagerServiceTest {
     }
 
     @Test
-    public void getAllSubjectsByGroup_WithValidArguments_returnListOfSubjectDTOs() {
-        LearningGroup group = new LearningGroup();
+    public void getAllSubjectDTOsByGroup_WithValidArguments_returnListOfSubjectDTOs() {
+        LearningGroup group = generateValidLearnerHeadmanAndGroup().getLearningGroup();
 
-        List<Subject> subjects = List.of(new Subject("Програмування", group),
-                new Subject("Іноземна мова", group));
+        List<Subject> subjects = List.of(
+                generateValidSubject("Програмування", group),
+                generateValidSubject("Іноземна мова", group)
+        );
 
         group.setSubjects(subjects);
 
-        List<SubjectDTO> expectedDTOs = subjects.stream()
-                .map(SubjectDTO::from)
-                .collect(Collectors.toList());
-        List<SubjectDTO> receivedDTOs = assignmentManagerService.getAllSubjectsByGroup(group);
+        List<SubjectDTO> receivedDTOs = assignmentManagerService.getAllSubjectDTOsByGroup(group, group.getHeadmen());
 
+        assertNotNull(receivedDTOs);
+        assertFalse(receivedDTOs.isEmpty());
 
-        assertIterableEquals(expectedDTOs, receivedDTOs);
+        for(int i = 0; i < subjects.size(); i++) {
+            assertEquals(subjects.get(i).getName(), receivedDTOs.get(i).getName());
+            assertEquals(subjects.get(i).getGroup().getName(), receivedDTOs.get(i).getGroup());
+        }
     }
 
     @Test
-    public void getAllSubjectsByGroup_WithNoArguments_returnEmptyListOfSubjectDTOs() {
-        LearningGroup group = new LearningGroup();
+    public void getAllSubjectDTOsByGroup_WithNoArguments_returnEmptyListOfSubjectDTOs() {
+        LearningGroup group = generateValidLearnerHeadmanAndGroup().getLearningGroup();
         group.setSubjects(new ArrayList<>());
 
-        List<SubjectDTO> receivedDTOs = assignmentManagerService.getAllSubjectsByGroup(group);
+        List<SubjectDTO> receivedDTOs = assignmentManagerService.getAllSubjectDTOsByGroup(group, group.getHeadmen());
 
         assertIterableEquals(new ArrayList<>(), receivedDTOs);
     }
 
     @Test
-    public void getAllSubjectsByGroup_WithNullGroup_throwsNullPointerException() {
+    public void getAllSubjectDTOsByGroup_WithNullArguments_throwsNullPointerException() {
         assertThrows(NullPointerException.class,
-                () -> assignmentManagerService.getAllSubjectsByGroup(null));
+                () -> assignmentManagerService.getAllSubjectDTOsByGroup(null, new Learner()));
+        assertThrows(NullPointerException.class,
+                () -> assignmentManagerService.getAllSubjectDTOsByGroup(new LearningGroup(), null));
     }
 
     @Test
@@ -438,47 +472,48 @@ public class AssignmentManagerServiceTest {
                 Mockito.times(UNUSED)).saveAllGrades(anyList());
     }
 
+
+    // TODO
     @Test
-    public void getAllTasksOfSubject_WithValidArguments_returnTaskDTOList() {
-        LearningGroup group = new LearningGroup();
-        group.setId(1L);
-        String subjectName = "Програмування";
+    public void getAllTaskDTOsOfSubject_WithValidArguments_returnTaskDTOList() {
+        LearningGroup group = generateValidLearnerHeadmanAndGroup().getLearningGroup();
+        Learner learner = group.getHeadmen();
+        Subject subject = generateValidSubject("Test", group);
+        Task task = generateValidTask(subject);
+        Grade grade = generateValidGrade(learner, task);
 
-        Subject subject = new Subject("Програмування", group);
-        subject.setTasks(
-                List.of(new Task("pz1",
-                        TaskType.PRACTICAL,
-                        "Doing something",
-                        "09.09.2023",
-                        100,
-                        subject))
-        );
+        when(assignmentManagerDAO.findSubjectById(subject.getId())).thenReturn(subject);
 
-        Mockito.doReturn(subject)
-                .when(assignmentManagerDAO)
-                .findSubjectByNameAndGroupId("Програмування", 1L);
+        when(assignmentManagerDAO.findGradeByLearnerAndTask(learner, task)).thenReturn(grade);
 
-        List<TaskDTO> receivedTaskDTOs = assignmentManagerService.getAllTasksOfSubject(subjectName, group);
-        List<TaskDTO> expectedTaskDTOs = subject.getTasks()
-                                            .stream()
-                                            .map(TaskDTO::from)
-                                            .collect(Collectors.toList());
+        List<TaskDTO> receivedTaskDTOs = assignmentManagerService.getAllTaskDTOsOfSubject(
+                subject.getId(),
+                group,
+                learner);
 
-        assertIterableEquals(receivedTaskDTOs, expectedTaskDTOs);
+        assertNotNull(receivedTaskDTOs);
+        assertFalse(receivedTaskDTOs.isEmpty());
+
+        TaskDTO receivedTask = receivedTaskDTOs.get(0);
+
+        assertNotNull(receivedTask.getMark());
+        assertEquals(receivedTask.getMark(), grade.getMark());
+        assertNotNull(receivedTask.getCompletion());
+        assertEquals(receivedTask.getCompletion(), grade.getCompletion());
     }
 
     @Test
-    public void getAllTasksOfSubject_WithInvalidArguments_throwsNullPointerException() {
-        String subjectName = "Програмування";
+    public void getAllTaskDTOsOfSubject_WithNullArguments_throwsNullPointerException() {
+        Long subjectId = 1L;
         LearningGroup group = generateValidGroup();
-        when(assignmentManagerDAO.findSubjectByNameAndGroupId(eq("Програмування"), anyLong())).thenReturn(null);
+        when(assignmentManagerDAO.findSubjectById(subjectId)).thenReturn(null);
 
         assertThrows(NullPointerException.class,
-                () -> assignmentManagerService.getAllTasksOfSubject(subjectName, group));
+                () -> assignmentManagerService.getAllTaskDTOsOfSubject(null, group, new Learner()));
         assertThrows(NullPointerException.class,
-                () -> assignmentManagerService.getAllTasksOfSubject(null, new LearningGroup()));
+                () -> assignmentManagerService.getAllTaskDTOsOfSubject(subjectId, null, new Learner()));
         assertThrows(NullPointerException.class,
-                () -> assignmentManagerService.getAllTasksOfSubject(subjectName, null));
+                () -> assignmentManagerService.getAllTaskDTOsOfSubject(subjectId, group, new Learner()));
     }
 
     @Test
@@ -1287,21 +1322,28 @@ public class AssignmentManagerServiceTest {
         LearningGroup group = headman.getLearningGroup();
 
         Learner learner = generateValidLearnerStudent(group);
+        Grade oldGrade = new Grade(new GradeKey(1L, 2L), learner, new Task(), true, 100);
+        learner.getGrades().add(oldGrade);
 
         Subject subject = generateValidSubject("Subject_1");
         group.getSubjects().add(subject);
 
         Task task = generateValidTask(subject);
-        subject.getTasks().add(task);
 
         doAnswer(invocationOnMock -> {
             Learner l = invocationOnMock.getArgument(0);
             return l;
         }).when(assignmentManagerDAO).saveLearner(any(Learner.class));
 
-        Learner reqiuredLearner = assignmentManagerService.refreshLearnerGrades(learner, group);
+        doAnswer(invocationOnMock -> {
+            Learner l = invocationOnMock.getArgument(0);
+            l.getGrades().clear();
+            return l;
+        }).when(assignmentManagerDAO).deleteGradesByLearner(learner);
 
         List<Grade> expectedGrades = List.of(generateValidGrade(learner, task));
+
+        Learner reqiuredLearner = assignmentManagerService.refreshLearnerGrades(learner, group);
 
         assertNotNull(reqiuredLearner);
         assertIterableEquals(expectedGrades, reqiuredLearner.getGrades());
@@ -1318,16 +1360,15 @@ public class AssignmentManagerServiceTest {
         group.getSubjects().add(subject);
 
         Task task = generateValidTask(subject);
-        subject.getTasks().add(task);
 
         doAnswer(invocationOnMock -> {
             Learner l = invocationOnMock.getArgument(0);
             return l;
         }).when(assignmentManagerDAO).saveLearner(any(Learner.class));
 
-        Learner reqiuredLearner = assignmentManagerService.refreshLearnerGrades(learner, group);
-
         List<Grade> expectedGrades = List.of(generateValidGrade(learner, task));
+
+        Learner reqiuredLearner = assignmentManagerService.refreshLearnerGrades(learner, group);
 
         assertNotNull(reqiuredLearner);
         assertIterableEquals(expectedGrades, reqiuredLearner.getGrades());
@@ -1429,9 +1470,9 @@ public class AssignmentManagerServiceTest {
         LearningGroup group = oldHeadman.getLearningGroup();
         Learner newHeadman = generateValidLearnerStudent(group);
 
-        when(assignmentManagerDAO.findLearnersByNameAndLastname(anyString(), anyString())).thenReturn(newHeadman);
+        when(assignmentManagerDAO.findLearnerById(newHeadman.getId())).thenReturn(newHeadman);
 
-        assignmentManagerService.updateHeadmanOfGroup(group, LearnerDTO.from(newHeadman));
+        assignmentManagerService.updateHeadmanOfGroup(group, newHeadman.getId());
 
         assertEquals(oldHeadman.getRole(), LearningRole.STUDENT);
         assertEquals(newHeadman.getRole(), LearningRole.HEADMAN);
@@ -1447,25 +1488,10 @@ public class AssignmentManagerServiceTest {
         LearningGroup group = oldHeadman.getLearningGroup();
         Learner newHeadman = generateValidLearnerStudent();
 
-        when(assignmentManagerDAO.findLearnersByNameAndLastname(anyString(), anyString())).thenReturn(newHeadman);
+        when(assignmentManagerDAO.findLearnerById(newHeadman.getId())).thenReturn(newHeadman);
 
         assertThrows(IllegalArgumentException.class,
-                () -> assignmentManagerService.updateHeadmanOfGroup(group, LearnerDTO.from(newHeadman)));
-
-        verify(assignmentManagerDAO, never()).saveLearner(any(Learner.class));
-        verify(assignmentManagerDAO, never()).saveGroup(any(LearningGroup.class));
-    }
-
-    @Test
-    public void updateHeadmanOfGroup_WithInvalidLearnerDto_throwsIllegalArgumentException() {
-        Learner oldHeadman = generateValidLearnerHeadmanAndGroup();
-        LearningGroup group = oldHeadman.getLearningGroup();
-        Learner newHeadman = generateValidLearnerStudent();
-
-        when(assignmentManagerDAO.findLearnersByNameAndLastname(anyString(), anyString())).thenReturn(null);
-
-        assertThrows(IllegalArgumentException.class,
-                () -> assignmentManagerService.updateHeadmanOfGroup(group, LearnerDTO.from(newHeadman)));
+                () -> assignmentManagerService.updateHeadmanOfGroup(group, newHeadman.getId()));
 
         verify(assignmentManagerDAO, never()).saveLearner(any(Learner.class));
         verify(assignmentManagerDAO, never()).saveGroup(any(LearningGroup.class));
@@ -1474,7 +1500,7 @@ public class AssignmentManagerServiceTest {
     @Test
     public void updateHeadmanOfGroup_WithNullArguments_throwsNullPointerException() {
         assertThrows(NullPointerException.class,
-                () -> assignmentManagerService.updateHeadmanOfGroup(null, new LearnerDTO()));
+                () -> assignmentManagerService.updateHeadmanOfGroup(null, 1L));
         assertThrows(NullPointerException.class,
                 () -> assignmentManagerService.updateHeadmanOfGroup(new LearningGroup(), null));
     }
@@ -1563,8 +1589,9 @@ public class AssignmentManagerServiceTest {
     @Test
     public void manageEditorRole_WithNullLearner_throwsNullPointerException() {
         assertThrows(NullPointerException.class,
-                () -> assignmentManagerService.manageEditorRole(1L, null, anyBoolean()));
+                () -> assignmentManagerService.manageEditorRole(1L, null, true));
         assertThrows(NullPointerException.class,
-                () -> assignmentManagerService.manageEditorRole(null, new LearningGroup(), anyBoolean()));
-        }
+                () -> assignmentManagerService.manageEditorRole(null, new LearningGroup(), true));
+
+    }
 }

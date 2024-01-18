@@ -62,7 +62,9 @@ public class Subject implements ObjectWithId {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Subject subject = (Subject) o;
-        return Objects.equals(name, subject.name) && Objects.equals(isExam, subject.isExam) && Objects.equals(group, subject.group);
+        return Objects.equals(name, subject.name) &&
+                Objects.equals(isExam, subject.isExam) &&
+                Objects.equals(group, subject.group);
     }
 
     @Override
