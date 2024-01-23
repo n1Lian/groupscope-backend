@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
 @Slf4j
+@CrossOrigin
 @RestController
 public class AuthController {
     private final UserService userService;
