@@ -37,6 +37,7 @@ public class WebSecurityConfig implements WebMvcConfigurer {
                 .authorizeRequests(authorize -> authorize
                         .requestMatchers("/register", "/auth", "/oauth2", "/refresh", "/hi").permitAll()
                         .requestMatchers(HttpMethod.HEAD, "/register", "/auth", "/oauth2", "/refresh", "/hi").permitAll()
+                        .requestMatchers("/groups", "/teachers", "/aud", "/sch").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
