@@ -40,7 +40,6 @@ public class ScheduleService {
         hashesOfLastResponse.put(EventTypes.GROUP, "");
         hashesOfLastResponse.put(EventTypes.TEACHER, "");
         hashesOfLastResponse.put(EventTypes.AUDITORY, "");
-        
     }
 
     private String getSHA256Hash(String input) {
@@ -114,6 +113,12 @@ public class ScheduleService {
             // Sending a GET request to the API endpoint
             ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
             String jsonResponse = response.getBody();
+
+            // Fixing json structure
+            StringBuilder sb = new StringBuilder(Objects.requireNonNull(jsonResponse));
+            sb.delete(jsonResponse.length() - 2, jsonResponse.length());
+            sb.append("]}}");
+            jsonResponse = sb.toString();
 
             // Generating SHA-256 hash of the JSON response for comparison
             String responseHash = getSHA256Hash(requireNonNull(jsonResponse));
@@ -229,7 +234,7 @@ public class ScheduleService {
 
         // Handling the case when the entity is not found
         if (entity == null) {
-            log.error("Entity:" + type.name() + " not found with id = " + id);
+            log.warn("Entity:" + type.name() + " not found with id = " + id);
             return new ArrayList<>();
         }
 
@@ -266,7 +271,7 @@ public class ScheduleService {
      * @return The time elapsed (in hours) since the last update of the entity.
      */
     private double getHoursFromUpdate(Updatable updatable) {
-        return updatable == null ? Double.MAX_VALUE :
+        return updatable.getLastUpdated() == null ? Double.MAX_VALUE :
                 (Date.from(Instant.now()).getTime() - updatable.getLastUpdated().getTime()) / (1000.0 * 60 * 60);
     }
 

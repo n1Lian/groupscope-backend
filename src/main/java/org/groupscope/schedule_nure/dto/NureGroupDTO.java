@@ -49,9 +49,10 @@ public class NureGroupDTO extends Updatable {
                             JsonNode groupsNode = directionNode.get("groups");
                             addGroupsFromNode(groups, groupsNode);
 
-                            JsonNode specialitiesNode = directionNode.get("specialities");
-                            if (specialitiesNode != null) {
-                                addGroupsFromNode(groups, specialitiesNode.get("groups"));
+                            if (directionNode.has("specialities")) {
+                                for(JsonNode specialityNode : directionNode.get("specialities")) {
+                                    addGroupsFromNode(groups, specialityNode.get("groups"));
+                                }
                             }
                         }
                     }
