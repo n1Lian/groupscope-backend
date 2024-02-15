@@ -21,7 +21,9 @@ public class TaskDTO {
 
     private String name;
 
+    // TODO remove this field
     private String newName;
+
 
     private TaskType type;
 

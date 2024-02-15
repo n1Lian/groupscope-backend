@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.groupscope.schedule_nure.entity.NureGroup;
 
 import java.io.IOException;
 import java.util.*;
@@ -65,9 +66,14 @@ public class NureGroupDTO extends Updatable {
         return groups;
     }
 
+    public NureGroup toEntity() {
+        return new NureGroup(this.id, this.name);
+    }
+
     public static List<NureGroupDTO> sortByName(List<NureGroupDTO> groups) {
-        groups.sort(Comparator.comparing(NureGroupDTO::getName));
-        return groups;
+        List<NureGroupDTO> groupsTmp = new ArrayList<>(groups);
+        groupsTmp.sort(Comparator.comparing(NureGroupDTO::getName));
+        return groupsTmp;
     }
 
     private static void addGroupsFromNode(HashMap<Long, NureGroupDTO> groups, JsonNode node) {

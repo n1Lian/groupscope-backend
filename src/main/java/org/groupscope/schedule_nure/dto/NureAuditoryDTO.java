@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.groupscope.schedule_nure.entity.NureAuditory;
 
 import java.io.IOException;
 import java.util.Comparator;
@@ -57,6 +58,10 @@ public class NureAuditoryDTO extends Updatable {
             e.printStackTrace();
         }
         return auditories;
+    }
+
+    public NureAuditory toEntity() {
+        return new NureAuditory(id, name, corps);
     }
 
     public static List<NureAuditoryDTO> sortByCorps(List<NureAuditoryDTO> auditories) {

@@ -1,16 +1,18 @@
 package org.groupscope.schedule_nure.dto;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import org.groupscope.schedule_nure.entity.NureTeacher;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
 
 @Data
+@EqualsAndHashCode(of = "id")
+@ToString(of = {"id", "fullName", "shortName"})
 @NoArgsConstructor
 @AllArgsConstructor
 public class NureTeacherDTO extends Updatable {
@@ -23,19 +25,6 @@ public class NureTeacherDTO extends Updatable {
         this.id = id;
         this.fullName = fullName;
         this.shortName = shortName;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (obj == null || getClass() != obj.getClass()) return false;
-        NureTeacherDTO teacher = (NureTeacherDTO) obj;
-        return Objects.equals(id, teacher.id);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(id);
     }
 
     public static HashMap<Long, NureTeacherDTO> parse(String json) {
@@ -67,6 +56,10 @@ public class NureTeacherDTO extends Updatable {
         }
 
         return teachers;
+    }
+
+    public NureTeacher toEntity() {
+        return new NureTeacher(id, fullName, shortName);
     }
 
     private static void addTeachersFromNode(HashMap<Long, NureTeacherDTO> teachers, JsonNode node) {

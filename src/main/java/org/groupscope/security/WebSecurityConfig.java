@@ -31,7 +31,6 @@ public class WebSecurityConfig implements WebMvcConfigurer {
         this.jwtFilter = jwtFilter;
     }
 
-    // TODO authorizeRequests is deprecated
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
@@ -39,11 +38,12 @@ public class WebSecurityConfig implements WebMvcConfigurer {
                 .httpBasic(withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeRequests(authorize -> authorize
-                        .requestMatchers("/register", "/auth", "/oauth2", "/refresh", "/hi").permitAll()
-                        .requestMatchers(HttpMethod.HEAD, "/register", "/auth", "/oauth2", "/refresh", "/hi").permitAll()
-                        .requestMatchers("/groups", "/teachers", "/aud", "/sch").permitAll()
-                        .anyRequest().authenticated())
+                .authorizeHttpRequests(
+                        authorize -> authorize
+                                .requestMatchers("/register", "/auth", "/oauth2", "/refresh", "/hi").permitAll()
+                                .requestMatchers("/groups", "/teachers", "/aud", "/subjects", "/schedule", "/sch").permitAll()
+                                .anyRequest().authenticated()
+                )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }

@@ -22,7 +22,8 @@ public class ScheduleController {
 
     @GetMapping("/groups")
     public List<NureGroupDTO> getGroupsFromNure() {
-        return scheduleService.getGroupsMap().values().stream().toList();
+        List<NureGroupDTO> groupDTOS = scheduleService.getGroupsMap().values().stream().toList();
+        return NureGroupDTO.sortByName(groupDTOS);
     }
 
     @GetMapping("/teachers")
@@ -35,11 +36,23 @@ public class ScheduleController {
         return scheduleService.getAuditoriesMap().values().stream().toList();
     }
 
+    @GetMapping("/subjects")
+    public List<NureSubjectDTO> getSubjects(@RequestParam(name = "id") long id) {
+        return scheduleService.getSubjectsByNureGroupId(id);
+    }
+
     @GetMapping("/sch")
     public List<NureEventDTO> getEvents(@RequestParam(name = "id") int id,
+                                        @RequestParam(name = "type") EventTypes type) {
+        return scheduleService.getEvents(id, type);
+    }
+
+    @GetMapping("/schedule")
+    public List<NureEventDTO> getEventsInInterval(@RequestParam(name = "id") int id,
                                         @RequestParam(name = "type") EventTypes type,
                                         @RequestParam(name = "startTime") long startTime,
                                         @RequestParam(name = "endTime") long endTime) {
         return scheduleService.getEvents(id, type, startTime, endTime);
     }
+
 }
