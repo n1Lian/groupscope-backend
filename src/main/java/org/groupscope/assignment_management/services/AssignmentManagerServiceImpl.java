@@ -1,49 +1,78 @@
 package org.groupscope.assignment_management.services;
 
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.groupscope.assignment_management.dao.AssignmentManagerDAO;
 import org.groupscope.assignment_management.dto.*;
 import org.groupscope.assignment_management.entity.*;
 import org.groupscope.assignment_management.entity.grade.Grade;
 import org.groupscope.assignment_management.entity.grade.GradeKey;
+import org.groupscope.exceptions.DuplicateEntityException;
+import org.groupscope.exceptions.EntityNotFoundException;
+import org.groupscope.exceptions.StudentNotInGroupException;
+import org.groupscope.schedule_nure.dao.ScheduleRedisDAO;
+import org.groupscope.schedule_nure.dto.NureGroupDTO;
+import org.groupscope.schedule_nure.dto.NureSubjectDTO;
+import org.groupscope.schedule_nure.entity.NureGroup;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
+import static lombok.AccessLevel.PRIVATE;
 import static org.groupscope.util.FunctionInfo.getCurrentMethodName;
 
 // TODO realize deletion of empty groups
 
 @Slf4j
 @Service
+@FieldDefaults(makeFinal = true, level = PRIVATE)
+@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AssignmentManagerServiceImpl implements AssignmentManagerService {
 
-    private final AssignmentManagerDAO assignmentManagerDAO;
+    AssignmentManagerDAO assignmentManagerDAO;
 
-    @Autowired
-    public AssignmentManagerServiceImpl(AssignmentManagerDAO assignmentManagerDAO) {
-        this.assignmentManagerDAO = assignmentManagerDAO;
-    }
+    ScheduleRedisDAO scheduleRedisDAO;
 
+    // TODO update API doc for this method(or realize swagger for this project ^_^)
     @Override
     @Transactional
-    public Subject addSubject(SubjectDTO subjectDTO, LearningGroup group) {
-        Subject subject = subjectDTO.toSubject();
-
+    public Subject addSubject(Long NureSubjectId, LearningGroup group) {
+        requireNonNull(NureSubjectId, "Nure subject id is null");
         requireNonNull(group, "Learning group was null");
-        subject.setGroup(group);
 
-        if (!subject.getGroup().getSubjects().contains(subject)) {
-            assignmentManagerDAO.saveSubject(subject);
-            return subject;
-        } else
-            throw new IllegalArgumentException("Subject = " + subject.toString() + " has been already existing");
+        Long nureGroupId = scheduleRedisDAO.getNureGroupByLinkId(group.getId()).getId();
+        NureSubjectDTO nureSubjectDTO = scheduleRedisDAO.getSubjectsByNureGroupId(nureGroupId).stream()
+                .filter(subject -> subject.getId().equals(NureSubjectId))
+                .findFirst()
+                .orElse(null);
+
+        if(nureSubjectDTO == null)
+            throw new EntityNotFoundException(NureSubjectDTO.class, NureSubjectId);
+
+        Subject subject = new Subject(
+                1L,
+                nureSubjectDTO.getTitle(),
+                nureSubjectDTO.getBrief(),
+                false,
+                new ArrayList<>(),
+                group
+        );
+
+        if (group.getSubjects().contains(subject)) {
+            throw new DuplicateEntityException("Subject: " + subject.getBrief() + " has been already existing in group = " + group.getName());
+        }
+
+        assignmentManagerDAO.saveSubject(subject);
+        scheduleRedisDAO.saveNureSubjectByLinkId(subject.getId(), nureSubjectDTO.getId());
+        return subject;
     }
 
     @Override
@@ -68,8 +97,10 @@ public class AssignmentManagerServiceImpl implements AssignmentManagerService {
 
         requireNonNull(subject, "Subject not found with name: " + subjectDTO.getName());
 
-        if (subjectDTO.getNewName() != null)
-            subject.setName(subjectDTO.getNewName());
+        if (subjectDTO.getName() != null)
+            subject.setName(subjectDTO.getName());
+        if (subjectDTO.getBrief() != null)
+            subject.setBrief(subjectDTO.getBrief());
         if (subjectDTO.getIsExam() != null)
             subject.setIsExam(subjectDTO.getIsExam());
 
@@ -269,7 +300,8 @@ public class AssignmentManagerServiceImpl implements AssignmentManagerService {
         requireNonNull(inviteCode, "Invite code is null");
 
         LearningGroup learningGroup = assignmentManagerDAO.findLearningGroupByInviteCode(inviteCode);
-        requireNonNull(learningGroup, "Group with inviteCode = " + inviteCode + " not found");
+        if (learningGroup == null)
+            throw new EntityNotFoundException(LearningGroup.class, inviteCode);
 
         boolean isGroupContainsLearner = learningGroup.getLearners().contains(learner);
         processLearnerWithdrawal(learner);
@@ -371,27 +403,32 @@ public class AssignmentManagerServiceImpl implements AssignmentManagerService {
         return LearningGroupDTO.from(learner.getLearningGroup());
     }
 
+    // TODO update API doc for this method(or realize swagger for this project ^_^)
     @Override
     @Transactional
-    public LearningGroup addGroup(LearningGroupDTO learningGroupDTO) {
-        requireNonNull(learningGroupDTO, "Learning group DTO is null");
+    public LearningGroup addGroup(Long nureGroupId, LearnerDTO headman) {
+        requireNonNull(nureGroupId, "Nure group id is null");
+        requireNonNull(headman, "Headman is null");
 
-        LearningGroup group = learningGroupDTO.toLearningGroup();
+        NureGroupDTO nureGroup = scheduleRedisDAO.getGroupById(nureGroupId);
+
+        LearningGroup group = new LearningGroup(nureGroup.getName());
+        group.setHeadmen(headman.toLearner());
         group.getHeadmen().setRole(LearningRole.HEADMAN);
         group.getHeadmen().setLearningGroup(group);
 
         if (group.getHeadmen().getId() != null)
             assignmentManagerDAO.deleteGradesByLearner(group.getHeadmen());
 
-        List<LearningGroup> allGroups = assignmentManagerDAO.getAllGroups();
+        HashMap<Long, Long> linkIdToNureId = scheduleRedisDAO.getGroupsLinks();
 
-        if (!allGroups.contains(group)) {
-            group = assignmentManagerDAO.saveGroup(group);
-            group.generateInviteCode();
-            return assignmentManagerDAO.saveGroup(group);
-        } else {
-            throw new IllegalArgumentException("Group " + group.getName() + " has been already existing");
-        }
+        if(linkIdToNureId.containsValue(nureGroupId))
+            throw new DuplicateEntityException(LearningGroup.class, group.getName());
+
+        group = assignmentManagerDAO.saveGroup(group);
+        group.generateInviteCode();
+        scheduleRedisDAO.saveNureGroupByLinkId(group.getId(), nureGroupId);
+        return assignmentManagerDAO.saveGroup(group);
     }
 
     @Override
@@ -399,7 +436,8 @@ public class AssignmentManagerServiceImpl implements AssignmentManagerService {
         requireNonNull(id, "Id is null");
 
         LearningGroup learningGroup = assignmentManagerDAO.findGroupById(id);
-        requireNonNull(learningGroup, "Group with id = " + id + " not found");
+        if (learningGroup == null)
+            throw new EntityNotFoundException(LearningGroup.class, id);
 
         return learningGroup;
     }
@@ -423,7 +461,8 @@ public class AssignmentManagerServiceImpl implements AssignmentManagerService {
 
         Learner oldHeadman = group.getHeadmen();
         Learner newHeadman = assignmentManagerDAO.findLearnersByNameAndLastname(learnerDTO.getName(), learnerDTO.getLastname());
-        requireNonNull(newHeadman, "Headman is null");
+        if (newHeadman == null)
+            throw new EntityNotFoundException(Learner.class, learnerDTO.getId());
 
         if (group.getLearners().contains(newHeadman)) {
             oldHeadman.setRole(LearningRole.STUDENT);
@@ -434,7 +473,7 @@ public class AssignmentManagerServiceImpl implements AssignmentManagerService {
             assignmentManagerDAO.saveLearner(newHeadman);
             return assignmentManagerDAO.saveGroup(group);
         } else
-            throw new IllegalArgumentException("Learner = " + newHeadman + " does not contains in group = " + group);
+            throw new StudentNotInGroupException(newHeadman, group);
     }
 
     /**

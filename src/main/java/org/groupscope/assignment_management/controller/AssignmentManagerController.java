@@ -75,7 +75,7 @@ public class AssignmentManagerController {
     }
 
     @PostMapping("/subject/add")
-    public ResponseEntity<HttpStatus> addSubject(@RequestBody SubjectDTO subjectDTO) {
+    public ResponseEntity<HttpStatus> addSubject(@RequestParam(name = "id") Long nureSubjectId) {
         try {
             User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
             HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest();
@@ -83,7 +83,7 @@ public class AssignmentManagerController {
 
             LearningRole userRole = user.getLearner().getRole();
             if(hasAccess(userRole, LearningRole.HEADMAN)) {
-                assignmentManagerService.addSubject(subjectDTO, user.getLearner().getLearningGroup());
+                assignmentManagerService.addSubject(nureSubjectId, user.getLearner().getLearningGroup());
 
                 return ResponseEntity.ok().build();
             } else {
@@ -91,10 +91,8 @@ public class AssignmentManagerController {
             }
         } catch (NullPointerException | IllegalArgumentException e) {
             log.error(e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        } catch (Exception e) {
-            log.error(e.getMessage());
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
         }
     }
 
@@ -337,14 +335,13 @@ public class AssignmentManagerController {
     }
 
     @PostMapping("/group/create")
-    public ResponseEntity<HttpStatus> createGroup(@RequestBody LearningGroupDTO learningGroupDTO) {
+    public ResponseEntity<HttpStatus> createGroup(@RequestParam(name = "id") Long nureGroupId) {
         try {
             User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
             HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest();
             logRequestMapping(user, request);
 
-            learningGroupDTO.setHeadmen(LearnerDTO.from(user.getLearner()));
-            assignmentManagerService.addGroup(learningGroupDTO);
+            assignmentManagerService.addGroup(nureGroupId, LearnerDTO.from(user.getLearner()));
 
             return ResponseEntity.ok().build();
         } catch (NullPointerException | IllegalArgumentException e) {

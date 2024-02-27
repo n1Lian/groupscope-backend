@@ -14,7 +14,7 @@ public class RegistrationRequest extends AuthRequest {
 
     private String inviteCode;
 
-    private String groupName;
+    private Long nureGroupId;
 
     public User toUser() {
         User user = new User();

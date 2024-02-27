@@ -1,6 +1,8 @@
 package org.groupscope.assignment_management.entity;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import jakarta.persistence.*;
@@ -18,6 +20,8 @@ import java.util.Objects;
 
 @Slf4j
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 @Entity
 @Table(name = "groups")
 public class LearningGroup implements ObjectWithId {
@@ -40,22 +44,15 @@ public class LearningGroup implements ObjectWithId {
     // Every group has subjects that the headmen has added
     @OneToMany(cascade = CascadeType.REMOVE, fetch = FetchType.EAGER)
     @JoinColumn(name = "group_id")
-    private List<Subject> subjects;
+    private List<Subject> subjects = new ArrayList<>();
 
     // List of learners in the group.
     @OneToMany(cascade = CascadeType.REMOVE, fetch = FetchType.EAGER, targetEntity = Learner.class)
     @JoinColumn(name = "group_id")
-    private List<Learner> learners;
-
-    public LearningGroup() {
-        this.learners = new ArrayList<>();
-        this.subjects = new ArrayList<>();
-    }
+    private List<Learner> learners = new ArrayList<>();
 
     public LearningGroup(String groupName) {
         this.name = groupName;
-        this.learners = new ArrayList<>();
-        this.subjects = new ArrayList<>();
     }
 
     // Generate a random invite code for the group.

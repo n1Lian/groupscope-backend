@@ -11,7 +11,7 @@ import java.util.List;
 
 public interface AssignmentManagerService {
 
-    Subject addSubject(SubjectDTO subjectDTO, LearningGroup group);
+    Subject addSubject(Long NureSubjectId, LearningGroup group);
 
     Subject getSubjectByName(String subjectName, LearningGroup group);
 
@@ -62,7 +62,7 @@ public interface AssignmentManagerService {
 
     LearningGroupDTO getGroup(Learner learner);
 
-    LearningGroup addGroup(LearningGroupDTO learningGroupDTO);
+    LearningGroup addGroup(Long nureGroupId, LearnerDTO headman);
 
     LearningGroup getGroupById(Long id);
 

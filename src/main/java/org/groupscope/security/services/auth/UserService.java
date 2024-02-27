@@ -70,12 +70,13 @@ public class UserService {
             return processLearner(user, student);
 
         // Add new learner and create a new group
-        } else if (request.getGroupName() != null) {
+        } else if (request.getNureGroupId() != null) {
             LearnerDTO headman = new LearnerDTO(request.getLearnerName(),
                     request.getLearnerLastname(),
                     LearningRole.HEADMAN);
-            LearningGroupDTO learningGroupDTO = new LearningGroupDTO(request.getGroupName(), headman);
-            LearningGroup learningGroup = assignmentManagerService.addGroup(learningGroupDTO);
+
+            LearningGroup learningGroup = assignmentManagerService.addGroup(request.getNureGroupId(), headman);
+
             if(learningGroup != null) {
                 user.setLearner(learningGroup.getHeadmen());
                 return userRepository.save(user);

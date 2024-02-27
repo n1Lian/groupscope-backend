@@ -64,7 +64,7 @@ public class OAuth2UserService extends DefaultOAuth2UserService {
         User user = new User();
         user.setLogin(registrationRequest.getLogin());
         registrationRequest.setInviteCode(request.getInviteCode());
-        registrationRequest.setGroupName(request.getGroupName());
+        registrationRequest.setNureGroupId(request.getNureGroupId());
 
         User foundedUser = userService.findByLogin(user.getLogin());
 

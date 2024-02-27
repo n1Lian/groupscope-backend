@@ -7,9 +7,16 @@ import org.groupscope.assignment_management.entity.grade.Grade;
 import org.groupscope.assignment_management.entity.grade.GradeKey;
 import org.groupscope.assignment_management.services.AssignmentManagerService;
 import org.groupscope.assignment_management.services.AssignmentManagerServiceImpl;
+import org.groupscope.exceptions.DuplicateEntityException;
+import org.groupscope.exceptions.EntityNotFoundException;
+import org.groupscope.exceptions.StudentNotInGroupException;
+import org.groupscope.schedule_nure.dao.ScheduleRedisDAO;
+import org.groupscope.schedule_nure.dto.NureGroupDTO;
+import org.groupscope.schedule_nure.dto.NureSubjectDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -18,10 +25,7 @@ import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -35,15 +39,19 @@ public class AssignmentManagerServiceTest {
     @Mock
     private AssignmentManagerDAO assignmentManagerDAO;
 
-    private AssignmentManagerService assignmentManagerService;
+    @Mock
+    private ScheduleRedisDAO scheduleRedisDAO;
+
+    private AssignmentManagerServiceImpl assignmentManagerService;
+
+    @BeforeEach
+    public void setUp() {
+        assignmentManagerService = new AssignmentManagerServiceImpl(assignmentManagerDAO, scheduleRedisDAO);
+    }
 
     private static final int USED_ONCE = 1;
     private static final int UNUSED = 0;
 
-    @BeforeEach
-    void setUp() {
-        assignmentManagerService = new AssignmentManagerServiceImpl(assignmentManagerDAO);
-    }
 
     /**This method generates a valid Learner object with a name, last name, learning role,
      * and a learning group. It returns the created Learner object.
@@ -140,34 +148,79 @@ public class AssignmentManagerServiceTest {
         );
     }
 
+    private NureGroupDTO generateValidNureGroupDTO() {
+        Random random = new Random();
+        NureGroupDTO nureGroupDTO = new NureGroupDTO();
+        nureGroupDTO.setId(Math.abs(random.nextLong()) % 100);
+        nureGroupDTO.setName("Group");
+
+        return nureGroupDTO;
+    }
+
+    private NureSubjectDTO generateValidNureSubjectDTO() {
+        Random random = new Random();
+        NureSubjectDTO nureSubjectDTO = new NureSubjectDTO();
+        nureSubjectDTO.setId(Math.abs(random.nextLong()) % 100);
+        nureSubjectDTO.setTitle("Title");
+        nureSubjectDTO.setBrief("Brief");
+
+        return nureSubjectDTO;
+    }
+
     @Test
     public void addSubject_WithValidSubject_save() {
-        SubjectDTO subjectDTO = new SubjectDTO("Програмування");
-        LearningGroup learningGroup = new LearningGroup();
-        learningGroup.setSubjects(Collections.singletonList(new Subject("Іноземна мова", learningGroup)));
+        LearningGroup learningGroup = generateValidGroup();
 
-        Subject subject = assignmentManagerService.addSubject(subjectDTO, learningGroup);
+        NureGroupDTO nureGroupDTO = generateValidNureGroupDTO();
+        NureSubjectDTO nureSubjectDTO = generateValidNureSubjectDTO();
+
+        when(scheduleRedisDAO.getNureGroupByLinkId(anyLong()))
+                .thenReturn(nureGroupDTO);
+        when(scheduleRedisDAO.getSubjectsByNureGroupId(nureGroupDTO.getId()))
+                .thenReturn(List.of(nureSubjectDTO));
+
+        Subject subject = assignmentManagerService.addSubject(nureSubjectDTO.getId(), learningGroup);
 
         Mockito.verify(assignmentManagerDAO, Mockito.times(USED_ONCE)).saveSubject(subject);
     }
 
     @Test
-    public void addSubject_WithExistSubjectInGroup_throwsIllegalArgumentException() {
-        SubjectDTO subjectDTO = new SubjectDTO("Програмування");
-        LearningGroup learningGroup = new LearningGroup();
-        learningGroup.setSubjects(Collections.singletonList(new Subject("Програмування", learningGroup)));
+    public void addSubject_WithExistSubjectInGroup_throwsDuplicateEntityException() {
+        LearningGroup learningGroup = generateValidGroup();
 
-        assertThrows(IllegalArgumentException.class,
-                () -> assignmentManagerService.addSubject(subjectDTO, learningGroup));
+        NureGroupDTO nureGroupDTO = generateValidNureGroupDTO();
+        NureSubjectDTO nureSubjectDTO = generateValidNureSubjectDTO();
+
+        learningGroup.setSubjects(
+                Collections.singletonList(
+                        new Subject(
+                                1L,
+                                nureSubjectDTO.getTitle(),
+                                nureSubjectDTO.getBrief(),
+                                false,
+                                new ArrayList<>(),
+                                learningGroup
+                        )
+                )
+        );
+
+        when(scheduleRedisDAO.getNureGroupByLinkId(anyLong()))
+                .thenReturn(nureGroupDTO);
+        when(scheduleRedisDAO.getSubjectsByNureGroupId(nureGroupDTO.getId()))
+                .thenReturn(List.of(nureSubjectDTO));
+
+        assertThrows(DuplicateEntityException.class,
+                () -> assignmentManagerService.addSubject(nureSubjectDTO.getId(), learningGroup));
 
         Mockito.verify(assignmentManagerDAO, Mockito.times(UNUSED)).saveSubject(any());
     }
 
     @Test
-    public void addSubject_WithNullGroup_throwsNullPointerException() {
-        SubjectDTO subjectDTO = new SubjectDTO("Програмування");
-
-        assertThrows(NullPointerException.class, () -> assignmentManagerService.addSubject(subjectDTO, null));
+    public void addSubject_WithNullArgs_throwsNullPointerException() {
+        assertThrows(NullPointerException.class,
+                () -> assignmentManagerService.addSubject(1L, null));
+        assertThrows(NullPointerException.class,
+                () -> assignmentManagerService.addSubject(null, new LearningGroup()));
 
         Mockito.verify(assignmentManagerDAO, Mockito.times(UNUSED)).saveSubject(any());
     }
@@ -210,7 +263,7 @@ public class AssignmentManagerServiceTest {
         group.setSubjects(Collections.singletonList(subject));
 
         SubjectDTO subjectDTO = new SubjectDTO("Програмування");
-        subjectDTO.setNewName("Прог");
+        subjectDTO.setName("Прог");
         subjectDTO.setIsExam(true);
 
         when(assignmentManagerDAO.findSubjectByNameAndGroupId(eq(subjectDTO.getName()), eq(group.getId())))
@@ -232,7 +285,7 @@ public class AssignmentManagerServiceTest {
     @Test
     public void updateSubject_WithInvalidSubjectDTO_throwsNullPointerException() {
         SubjectDTO subjectDTO = new SubjectDTO("Програмування");
-        subjectDTO.setNewName("Прог");
+        subjectDTO.setName("Прог");
         LearningGroup learningGroup = new LearningGroup();
         learningGroup.setSubjects(Collections.singletonList(new Subject("Іноземна мова", learningGroup)));
 
@@ -244,7 +297,7 @@ public class AssignmentManagerServiceTest {
     @Test
     public void updateSubject_WithNullArguments_throwsNullPointerException() {
         SubjectDTO subjectDTO = new SubjectDTO("Програмування");
-        subjectDTO.setNewName("Прог");
+        subjectDTO.setName("Прог");
         LearningGroup learningGroup = new LearningGroup();
         learningGroup.setSubjects(Collections.singletonList(new Subject("Програмування", learningGroup)));
 
@@ -1055,12 +1108,12 @@ public class AssignmentManagerServiceTest {
     }
 
     @Test
-    public void addLearner_WithNotExistGroup_throwsNullPointerException() {
+    public void addLearner_WithNotExistGroup_throwsEntityNotFoundException() {
         Mockito.doReturn(null)
                 .when(assignmentManagerDAO)
                 .findLearningGroupByInviteCode(anyString());
 
-        assertThrows(NullPointerException.class,
+        assertThrows(EntityNotFoundException.class,
                 () -> assignmentManagerService.addLearner(new Learner(), "Code"));
     }
 
@@ -1182,10 +1235,12 @@ public class AssignmentManagerServiceTest {
 
     @Test
     public void addGroup_WithValidArgumentsAndNewLearnerHeadman_returnSavedLearningGroup() {
-        LearningGroupDTO learningGroupDTO = new LearningGroupDTO("Group name",
-                new LearnerDTO("Name", "Lastname"));
+        LearnerDTO headmanDTO = new LearnerDTO("Name", "Lastname");
 
-        when(assignmentManagerDAO.getAllGroups()).thenReturn(new ArrayList<>());
+        NureGroupDTO nureGroupDTO = generateValidNureGroupDTO();
+
+        when(scheduleRedisDAO.getGroupById(nureGroupDTO.getId())).thenReturn(nureGroupDTO);
+        when(scheduleRedisDAO.getGroupsLinks()).thenReturn(new HashMap<>());
 
         doAnswer(invocationOnMock -> {
             LearningGroup group = invocationOnMock.getArgument(0);
@@ -1193,7 +1248,7 @@ public class AssignmentManagerServiceTest {
             return group;
         }).when(assignmentManagerDAO).saveGroup(any(LearningGroup.class));
 
-        LearningGroup reqiuredGroup = assignmentManagerService.addGroup(learningGroupDTO);
+        LearningGroup reqiuredGroup = assignmentManagerService.addGroup(nureGroupDTO.getId(), headmanDTO);
 
         assertNotNull(reqiuredGroup);
         assertNotNull(reqiuredGroup.getHeadmen());
@@ -1204,10 +1259,10 @@ public class AssignmentManagerServiceTest {
     public void addGroup_WithValidArgumentsAndExistLearnerHeadman_returnSavedLearningGroup() {
         Learner headman = generateValidLearnerHeadmanAndGroup();
 
-        LearningGroupDTO learningGroupDTO = new LearningGroupDTO("Group name",
-                LearnerDTO.from(headman));
+        NureGroupDTO nureGroupDTO = generateValidNureGroupDTO();
 
-        when(assignmentManagerDAO.getAllGroups()).thenReturn(new ArrayList<>());
+        when(scheduleRedisDAO.getGroupById(anyLong())).thenReturn(nureGroupDTO);
+        when(scheduleRedisDAO.getGroupsLinks()).thenReturn(new HashMap<>());
 
         doAnswer(invocationOnMock -> {
             LearningGroup group = invocationOnMock.getArgument(0);
@@ -1215,7 +1270,7 @@ public class AssignmentManagerServiceTest {
             return group;
         }).when(assignmentManagerDAO).saveGroup(any(LearningGroup.class));
 
-        LearningGroup reqiuredGroup = assignmentManagerService.addGroup(learningGroupDTO);
+        LearningGroup reqiuredGroup = assignmentManagerService.addGroup(nureGroupDTO.getId(), LearnerDTO.from(headman));
 
         List<Grade> emptyList = new ArrayList<>();
 
@@ -1228,22 +1283,30 @@ public class AssignmentManagerServiceTest {
     }
 
     @Test
-    public void addGroup_WithExistGroup_throwsIllegalArgumentException() {
-        LearningGroupDTO learningGroupDTO = new LearningGroupDTO("Group name",
-                new LearnerDTO("Name", "Lastname"));
-        learningGroupDTO.getHeadmen().setRole(LearningRole.HEADMAN);
+    public void addGroup_WithExistGroup_throwsDuplicateEntityException() {
+        LearnerDTO headmanDTO = new LearnerDTO("Name", "Lastname");
+        headmanDTO.setRole(LearningRole.HEADMAN);
+        NureGroupDTO nureGroupDTO = generateValidNureGroupDTO();
 
-        when(assignmentManagerDAO.getAllGroups()).thenReturn(List.of(learningGroupDTO.toLearningGroup()));
+        when(scheduleRedisDAO.getGroupById(nureGroupDTO.getId()))
+                .thenReturn(nureGroupDTO);
+        when(scheduleRedisDAO.getGroupsLinks())
+                .thenReturn(new HashMap<>(Map.of(1L, nureGroupDTO.getId())));
 
-        assertThrows(IllegalArgumentException.class, () -> assignmentManagerService.addGroup(learningGroupDTO));
+        assertThrows(DuplicateEntityException.class,
+                () -> assignmentManagerService.addGroup(nureGroupDTO.getId(), headmanDTO));
 
         verify(assignmentManagerDAO, never()).saveGroup(any(LearningGroup.class));
     }
 
     @Test
-    public void addGroup_WithNullGroupDTO_throwsNullPointerException() {
+    public void addGroup_WithNullArgs_throwsNullPointerException() {
         assertThrows(NullPointerException.class,
-                () -> assignmentManagerService.addGroup(null));
+                () -> assignmentManagerService.addGroup(null, new LearnerDTO()));
+        assertThrows(NullPointerException.class,
+                () -> assignmentManagerService.addGroup(1L, null));
+        assertThrows(NullPointerException.class,
+                () -> assignmentManagerService.addGroup(null, null));
     }
 
     @Test
@@ -1258,7 +1321,7 @@ public class AssignmentManagerServiceTest {
     @Test
     public void getGroupById_WithWrongArguments_returnLearningGroup() {
         when(assignmentManagerDAO.findGroupById(anyLong())).thenReturn(null);
-        assertThrows(NullPointerException.class,
+        assertThrows(EntityNotFoundException.class,
                 () -> assignmentManagerService.getGroupById(1L));
         assertThrows(NullPointerException.class,
                 () -> assignmentManagerService.getGroupById(null));
@@ -1443,14 +1506,14 @@ public class AssignmentManagerServiceTest {
     }
 
     @Test
-    public void updateHeadmanOfGroup_WithLearnerAbsence_throwsIllegalArgumentException() {
+    public void updateHeadmanOfGroup_WithLearnerAbsence_throwsStudentNotInGroupException() {
         Learner oldHeadman = generateValidLearnerHeadmanAndGroup();
         LearningGroup group = oldHeadman.getLearningGroup();
         Learner newHeadman = generateValidLearnerStudent();
 
         when(assignmentManagerDAO.findLearnersByNameAndLastname(anyString(), anyString())).thenReturn(newHeadman);
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(StudentNotInGroupException.class,
                 () -> assignmentManagerService.updateHeadmanOfGroup(group, LearnerDTO.from(newHeadman)));
 
         verify(assignmentManagerDAO, never()).saveLearner(any(Learner.class));
@@ -1458,14 +1521,15 @@ public class AssignmentManagerServiceTest {
     }
 
     @Test
-    public void updateHeadmanOfGroup_WithInvalidLearnerDto_throwsIllegalArgumentException() {
+    public void updateHeadmanOfGroup_WithInvalidLearnerDto_throwsEntityNotFoundException() {
         Learner oldHeadman = generateValidLearnerHeadmanAndGroup();
         LearningGroup group = oldHeadman.getLearningGroup();
         Learner newHeadman = generateValidLearnerStudent();
 
-        when(assignmentManagerDAO.findLearnersByNameAndLastname(anyString(), anyString())).thenReturn(null);
+        when(assignmentManagerDAO.findLearnersByNameAndLastname(anyString(), anyString()))
+                .thenReturn(null);
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(EntityNotFoundException.class,
                 () -> assignmentManagerService.updateHeadmanOfGroup(group, LearnerDTO.from(newHeadman)));
 
         verify(assignmentManagerDAO, never()).saveLearner(any(Learner.class));
@@ -1564,8 +1628,8 @@ public class AssignmentManagerServiceTest {
     @Test
     public void manageEditorRole_WithNullLearner_throwsNullPointerException() {
         assertThrows(NullPointerException.class,
-                () -> assignmentManagerService.manageEditorRole(1L, null, anyBoolean()));
+                () -> assignmentManagerService.manageEditorRole(1L, null, true));
         assertThrows(NullPointerException.class,
-                () -> assignmentManagerService.manageEditorRole(null, new LearningGroup(), anyBoolean()));
+                () -> assignmentManagerService.manageEditorRole(null, new LearningGroup(), true));
         }
 }
