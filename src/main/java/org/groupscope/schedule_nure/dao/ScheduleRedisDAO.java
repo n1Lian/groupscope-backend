@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -26,17 +27,19 @@ public class ScheduleRedisDAO {
     RedisTemplate<String, HashMap<Long, List<NureSubjectDTO>>> linksBetweenNureGroupAndSubjects;
 
 
+    private static Long getLongValue(Map.Entry<Object, Object> entry) {
+        if (entry.getKey() instanceof Integer) {
+            return ((Integer) entry.getKey()).longValue();
+        } else {
+            return (Long) entry.getKey();
+        }
+    }
+
     public HashMap<Long, NureGroupDTO> getGroupsMap() {
         Map<Object, Object> entries = redisTemplate.opsForHash().entries(EventTypes.GROUP.name());
         return entries.entrySet().stream()
                 .collect(Collectors.toMap(
-                        entry -> {
-                            if (entry.getKey() instanceof Integer) {
-                                return ((Integer) entry.getKey()).longValue(); // Convert Integer key to Long
-                            } else {
-                                return (Long) entry.getKey(); // Cast key to Long
-                            }
-                        },
+                        ScheduleRedisDAO::getLongValue,
                         entry -> (NureGroupDTO) entry.getValue(), // Cast value to NureGroupDTO
                         (a, b) -> a, // Merge function
                         HashMap::new // Supplier
@@ -59,13 +62,7 @@ public class ScheduleRedisDAO {
         Map<Object, Object> entries = redisTemplate.opsForHash().entries(EventTypes.TEACHER.name());
         return entries.entrySet().stream()
                 .collect(Collectors.toMap(
-                        entry -> {
-                            if (entry.getKey() instanceof Integer) {
-                                return ((Integer) entry.getKey()).longValue(); // Convert Integer key to Long
-                            } else {
-                                return (Long) entry.getKey(); // Cast key to Long
-                            }
-                        },
+                        ScheduleRedisDAO::getLongValue,
                         entry -> (NureTeacherDTO) entry.getValue(), // Cast value to NureGroupDTO
                         (a, b) -> a, // Merge function
                         HashMap::new // Supplier
@@ -87,13 +84,7 @@ public class ScheduleRedisDAO {
         Map<Object, Object> entries = redisTemplate.opsForHash().entries(EventTypes.AUDITORY.name());
         return entries.entrySet().stream()
                 .collect(Collectors.toMap(
-                        entry -> {
-                            if (entry.getKey() instanceof Integer) {
-                                return ((Integer) entry.getKey()).longValue(); // Convert Integer key to Long
-                            } else {
-                                return (Long) entry.getKey(); // Cast key to Long
-                            }
-                        },
+                        ScheduleRedisDAO::getLongValue,
                         entry -> (NureAuditoryDTO) entry.getValue(), // Cast value to NureGroupDTO
                         (a, b) -> a, // Merge function
                         HashMap::new // Supplier
@@ -112,44 +103,52 @@ public class ScheduleRedisDAO {
 
 
 
-
     public NureGroupDTO getNureGroupByLinkId(Long groupId) {
-        Long nureGroupId = linksRedisTemplate.opsForValue().get("groups").get(groupId);
-        return (NureGroupDTO) redisTemplate.opsForValue().get(EventTypes.GROUP).get(nureGroupId);
+        Long nureGroupId = ((Integer) linksRedisTemplate.opsForHash().get("groups-links", groupId)).longValue();
+        return nureGroupId == null ? null : (NureGroupDTO) redisTemplate.opsForHash().get(EventTypes.GROUP.name(), nureGroupId);
+    }
+
+    public HashMap<Long, Long> getGroupsLinks() {
+        Map<Object, Object> entries = linksRedisTemplate.opsForHash().entries("groups-links");
+        return entries.entrySet().stream()
+                .collect(Collectors.toMap(
+                        ScheduleRedisDAO::getLongValue,
+                        ScheduleRedisDAO::getLongValue,
+                        (a, b) -> a, // Merge function
+                        HashMap::new // Supplier
+                ));
     }
 
     public void saveNureGroupByLinkId(Long groupId, Long nureGroupId) {
-        linksRedisTemplate.opsForValue().get("groups").put(groupId, nureGroupId);
+        linksRedisTemplate.opsForHash().put("groups-links", groupId, nureGroupId);
     }
 
 
 
     public NureSubjectDTO getNureSubjectByLinkId(Long subjectId) {
-        Long nureSubjectId = linksRedisTemplate.opsForValue().get("subjects").get(subjectId);
-        return (NureSubjectDTO) redisTemplate.opsForValue().get(EventTypes.SUBJECT).get(nureSubjectId);
+        Long nureSubjectId = ((Integer) linksRedisTemplate.opsForHash().get("subjects-links", subjectId)).longValue();
+        return nureSubjectId == null ? null : (NureSubjectDTO) redisTemplate.opsForHash().get(EventTypes.SUBJECT.name(), nureSubjectId);
     }
 
-
     public void saveNureSubjectByLinkId(Long subjectId, Long nureSubjectId) {
-        linksRedisTemplate.opsForValue().get("subjects").put(subjectId, nureSubjectId);
+        linksRedisTemplate.opsForHash().put("subjects-links", subjectId, nureSubjectId);
     }
 
 
 
     public void addLinkBetweenNureGroupAndSubjects(Long nureGroupId, List<NureSubjectDTO> subjects) {
-        linksBetweenNureGroupAndSubjects.opsForHash().put("groups_subjects", nureGroupId, subjects);
+        linksBetweenNureGroupAndSubjects.opsForHash().put("groups-subjects", nureGroupId, subjects);
     }
 
     public List<NureSubjectDTO> getSubjectsByNureGroupId(Long nureGroupId) {
-        HashMap<Long, List<NureSubjectDTO>> links = linksBetweenNureGroupAndSubjects.opsForValue().get("nureGroupSubjects");
+        Set<Long> keys = linksBetweenNureGroupAndSubjects.opsForHash().keys("groups-subjects").stream()
+                .map(key -> ((Integer) key).longValue())
+                .collect(Collectors.toSet());
 
-        String groupKey = nureGroupId.toString();
-
-        if (links != null && links.containsKey(groupKey)) {
-            return links.get(groupKey);
+        if (keys.contains(nureGroupId)) {
+            return (List<NureSubjectDTO>) linksBetweenNureGroupAndSubjects.opsForHash().get("groups-subjects", nureGroupId);
         }
 
         return null;
     }
-
 }
