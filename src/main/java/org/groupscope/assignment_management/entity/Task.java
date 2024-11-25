@@ -60,6 +60,7 @@ public class Task implements ObjectWithId {
         this.info = info;
         this.deadline = deadline;
         this.maxMark = maxMark;
+        grades = new ArrayList<>();
     }
 
     public Task(String name, TaskType type, String info, String deadline, Integer maxMark, Subject subject) {
@@ -69,6 +70,7 @@ public class Task implements ObjectWithId {
         this.deadline = deadline;
         this.maxMark = maxMark;
         this.subject = subject;
+        grades = new ArrayList<>();
     }
 
     @PrePersist
@@ -92,7 +94,12 @@ public class Task implements ObjectWithId {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Task task = (Task) o;
-        return Objects.equals(name, task.name) && type == task.type && Objects.equals(maxMark, task.maxMark) && Objects.equals(info, task.info) && Objects.equals(deadline, task.deadline) && Objects.equals(subject, task.subject);
+        return Objects.equals(name, task.name) &&
+                type == task.type &&
+                Objects.equals(maxMark, task.maxMark) &&
+                Objects.equals(info, task.info) &&
+                Objects.equals(deadline, task.deadline) &&
+                Objects.equals(subject, task.subject);
     }
 
     @Override

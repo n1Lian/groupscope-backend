@@ -57,7 +57,7 @@ public class Learner implements ObjectWithId {
 
     public void setGrades(List<Grade> grades) {
         if(grades != null)
-            this.grades = grades;
+            this.grades = new ArrayList<>(grades);
     }
 
     @Override

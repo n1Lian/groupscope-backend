@@ -20,6 +20,7 @@ public class JwtProvider {
     @Value("${jwt.lifetime.accessToken}")
     private Long jwtTokenDurationMs;
 
+
     public String generateToken(String login) {
         long jwtLifetime = Duration.ofMillis(jwtTokenDurationMs).toDays();
         Date date = Date.from(LocalDate.now().plusDays(jwtLifetime).atStartOfDay(ZoneId.systemDefault()).toInstant());

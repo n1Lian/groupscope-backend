@@ -4,6 +4,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.groupscope.assignment_management.entity.Subject;
 import org.groupscope.assignment_management.entity.Task;
+import org.groupscope.assignment_management.entity.grade.Grade;
 import org.springframework.util.CollectionUtils;
 
 import java.util.List;
@@ -39,6 +40,26 @@ public class SubjectDTO {
 
         List<TaskDTO> taskDTOList = subject.getTasks().stream()
                 .map(TaskDTO::from).collect(Collectors.toList());
+
+        dto.setTasks(taskDTOList);
+        return dto;
+    }
+
+    public static SubjectDTO from(Subject subject, List<Grade> learnerGrades) {
+        SubjectDTO dto = new SubjectDTO();
+        dto.setId(subject.getId());
+        dto.setName(subject.getName());
+        dto.group = subject.getGroup().getName();
+        dto.isExam = subject.getIsExam();
+
+        List<TaskDTO> taskDTOList = subject.getTasks().stream()
+                .map(task -> {
+                    Grade grade = learnerGrades.stream()
+                            .filter(x -> x.getTask().equals(task))
+                            .findFirst()
+                            .orElse(new Grade());
+                    return TaskDTO.from(task, grade);
+                }).collect(Collectors.toList());
 
         dto.setTasks(taskDTOList);
         return dto;

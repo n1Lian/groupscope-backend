@@ -38,6 +38,7 @@ public class GradeDTO {
         return grade;
     }
 
+    // TODO Maybe move to constructor?
     @JsonIgnore
     public boolean isValid() {
         return (mark >= 0 && mark <= 100) && subjectName != null && taskName != null;
