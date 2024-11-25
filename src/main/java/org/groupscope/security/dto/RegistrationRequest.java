@@ -2,10 +2,12 @@ package org.groupscope.security.dto;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import org.groupscope.security.entity.User;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
+@ToString(callSuper = true)
 public class RegistrationRequest extends AuthRequest {
 
     private String learnerName;
@@ -14,7 +16,7 @@ public class RegistrationRequest extends AuthRequest {
 
     private String inviteCode;
 
-    private String groupName;
+    private Long nureGroupId;
 
     public User toUser() {
         User user = new User();
@@ -22,17 +24,5 @@ public class RegistrationRequest extends AuthRequest {
         user.setLogin(this.getLogin());
 
         return user;
-    }
-
-    public boolean isValid() {
-        return (login != null && login.length() != 0) && (password != null && password.length() != 0);
-    }
-
-    @Override
-    public String toString() {
-        return "RegistrationRequest {" +
-                "login = '" + login + '\'' +
-                ", password = '" + password + '\'' +
-                '}';
     }
 }

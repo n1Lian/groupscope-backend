@@ -1,23 +1,24 @@
 package org.groupscope.assignment_management.entity;
 
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
-
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.math.BigInteger;
-import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * This class allows to unite and manage our group of learners.
  * Represents a learning group that contains learners and subjects.
  */
-
-@Slf4j
-@Data
+@Getter
+@Setter
+@AllArgsConstructor
 @Entity
 @Table(name = "groups")
 public class LearningGroup implements ObjectWithId {
@@ -40,38 +41,30 @@ public class LearningGroup implements ObjectWithId {
     // Every group has subjects that the headmen has added
     @OneToMany(cascade = CascadeType.REMOVE, fetch = FetchType.EAGER)
     @JoinColumn(name = "group_id")
-    private List<Subject> subjects;
+    private List<Subject> subjects = new ArrayList<>();
 
     // List of learners in the group.
     @OneToMany(cascade = CascadeType.REMOVE, fetch = FetchType.EAGER, targetEntity = Learner.class)
     @JoinColumn(name = "group_id")
-    private List<Learner> learners;
+    private List<Learner> learners = new ArrayList<>();
 
     public LearningGroup() {
-        this.learners = new ArrayList<>();
-        this.subjects = new ArrayList<>();
+        generateInviteCode();
     }
 
     public LearningGroup(String groupName) {
+        generateInviteCode();
         this.name = groupName;
-        this.learners = new ArrayList<>();
-        this.subjects = new ArrayList<>();
     }
 
     // Generate a random invite code for the group.
     public void generateInviteCode(){
         if (this.inviteCode == null) {
-            ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
-            buffer.putLong(this.id);
+            String uuid = UUID.randomUUID().toString();
 
-            SecureRandom secureRandom = new SecureRandom(buffer.array());
+            SecureRandom secureRandom = new SecureRandom(uuid.getBytes());
             this.inviteCode = new BigInteger(32, secureRandom).toString(32);
-        } else
-            log.info("Invite code for " + this + " has already been generated");
-    }
-
-    public List<Learner> getLearners() {
-        return learners;
+        }
     }
 
     @Override

@@ -15,14 +15,14 @@ public class OAuth2Request {
 
     private String inviteCode;
 
-    private String groupName;
+    private Long nureGroupId;
 
     public RegistrationRequest toRegistrationRequest() {
         RegistrationRequest request = new RegistrationRequest();
         request.setLearnerName(this.getLearnerName());
         request.setLearnerLastname(this.getLearnerLastname());
         request.setInviteCode(this.getInviteCode());
-        request.setGroupName(this.getGroupName());
+        request.setNureGroupId(this.getNureGroupId());
         return request;
     }
 }

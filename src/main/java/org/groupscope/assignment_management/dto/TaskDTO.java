@@ -22,7 +22,9 @@ public class TaskDTO {
 
     private String name;
 
+    // TODO remove this field
     private String newName;
+
 
     private TaskType type;
 
@@ -105,10 +107,9 @@ public class TaskDTO {
     public boolean isValidDeadline() {
         try {
             DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
-            LocalDate now = LocalDate.now();
-            LocalDate deadline = LocalDate.parse(this.deadline, dateFormatter);
+            LocalDate.parse(this.deadline, dateFormatter);
 
-            return deadline.isAfter(now) || deadline.isEqual(now) || deadline.isBefore(now);
+            return true;
         } catch (DateTimeParseException e) {
             return false;
         }

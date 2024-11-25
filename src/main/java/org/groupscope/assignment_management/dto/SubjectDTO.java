@@ -18,14 +18,13 @@ public class SubjectDTO {
 
     private String name;
 
-    private String newName;
+    private String brief;
 
     private List<TaskDTO> tasks;
 
     private String group;
 
     private Boolean isExam;
-
 
     public SubjectDTO(String name) {
         this.name = name;
@@ -35,6 +34,7 @@ public class SubjectDTO {
         SubjectDTO dto = new SubjectDTO();
         dto.setId(subject.getId());
         dto.setName(subject.getName());
+        dto.setBrief(subject.getBrief());
         dto.group = subject.getGroup().getName();
         dto.isExam = subject.getIsExam();
 
@@ -69,6 +69,7 @@ public class SubjectDTO {
         Subject subject = new Subject(this.name);
         subject.setId(this.id);
         subject.setIsExam(this.isExam);
+        subject.setBrief(this.brief);
 
         if(!CollectionUtils.isEmpty(this.tasks)) {
             List<Task> taskList = this.tasks.stream()

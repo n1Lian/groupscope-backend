@@ -1,7 +1,9 @@
 package org.groupscope.assignment_management.entity;
 
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.groupscope.assignment_management.entity.grade.Grade;
 
 import jakarta.persistence.*;
@@ -15,6 +17,8 @@ import java.util.Objects;
  */
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 @Entity
 @Table(name = "learners")
 public class Learner implements ObjectWithId {
@@ -41,11 +45,7 @@ public class Learner implements ObjectWithId {
 
     // One-to-many relationship with the Grade entity. Each learner can have multiple grades.
     @OneToMany(mappedBy = "learner", cascade = CascadeType.REMOVE, fetch = FetchType.LAZY)
-    private List<Grade> grades;
-
-    public Learner() {
-        this.grades = new ArrayList<>();
-    }
+    private List<Grade> grades = new ArrayList<>();
 
     public Learner(String name, String lastname, LearningRole role, LearningGroup learningGroup) {
         this.name = name;

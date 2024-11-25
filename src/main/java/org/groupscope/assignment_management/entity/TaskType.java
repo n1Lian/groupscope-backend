@@ -8,6 +8,5 @@ package org.groupscope.assignment_management.entity;
 public enum TaskType {
     PRACTICAL,
     LABORATORY,
-    TEST,
-    NEWS
+    TEST
 }
