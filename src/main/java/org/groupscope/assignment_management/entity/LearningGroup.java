@@ -1,26 +1,23 @@
 package org.groupscope.assignment_management.entity;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.math.BigInteger;
-import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * This class allows to unite and manage our group of learners.
  * Represents a learning group that contains learners and subjects.
  */
-
-@Slf4j
-@Data
-@NoArgsConstructor
+@Getter
+@Setter
 @AllArgsConstructor
 @Entity
 @Table(name = "groups")
@@ -51,24 +48,23 @@ public class LearningGroup implements ObjectWithId {
     @JoinColumn(name = "group_id")
     private List<Learner> learners = new ArrayList<>();
 
+    public LearningGroup() {
+        generateInviteCode();
+    }
+
     public LearningGroup(String groupName) {
+        generateInviteCode();
         this.name = groupName;
     }
 
     // Generate a random invite code for the group.
     public void generateInviteCode(){
         if (this.inviteCode == null) {
-            ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
-            buffer.putLong(this.id);
+            String uuid = UUID.randomUUID().toString();
 
-            SecureRandom secureRandom = new SecureRandom(buffer.array());
+            SecureRandom secureRandom = new SecureRandom(uuid.getBytes());
             this.inviteCode = new BigInteger(32, secureRandom).toString(32);
-        } else
-            log.info("Invite code for " + this + " has already been generated");
-    }
-
-    public List<Learner> getLearners() {
-        return learners;
+        }
     }
 
     @Override

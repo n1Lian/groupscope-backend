@@ -1,41 +1,35 @@
 package org.groupscope.security.services.auth;
 
 
+import lombok.RequiredArgsConstructor;
 import org.groupscope.assignment_management.dao.repositories.UserRepository;
 import org.groupscope.assignment_management.dto.LearnerDTO;
-import org.groupscope.assignment_management.dto.LearningGroupDTO;
 import org.groupscope.assignment_management.entity.Learner;
 import org.groupscope.assignment_management.entity.LearningGroup;
 import org.groupscope.assignment_management.entity.LearningRole;
+import org.groupscope.assignment_management.services.GroupService;
+import org.groupscope.assignment_management.services.LearnerService;
+import org.groupscope.exceptions.EntityNotFoundException;
 import org.groupscope.security.dto.RegistrationRequest;
 import org.groupscope.security.entity.Provider;
 import org.groupscope.security.entity.User;
-import org.groupscope.assignment_management.services.AssignmentManagerService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import static org.groupscope.util.FunctionInfo.getCurrentMethodName;
+import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class UserService {
 
     private final UserRepository userRepository;
 
     private final PasswordEncoder passwordEncoder;
 
-    private final AssignmentManagerService assignmentManagerService;
+    private final LearnerService learnerService;
 
-
-    @Autowired
-    public UserService(UserRepository userRepository,
-                       PasswordEncoder passwordEncoder,
-                       AssignmentManagerService assignmentManagerService) {
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.assignmentManagerService = assignmentManagerService;
-    }
+    private final GroupService groupService;
 
 
     /**
@@ -50,61 +44,55 @@ public class UserService {
      * @return The saved custom user or null if the user couldn't be saved.
      */
     @Transactional
-    public User saveUser(User user, RegistrationRequest request, Provider provider) {
-        if(user == null || request == null || provider == null) {
-            throw new NullPointerException("One of arguments is null: " + user + ", " + request + ", " + provider +
-                    " in " + getCurrentMethodName());
-        }
+    public User saveUser(
+            User user,
+            RegistrationRequest request,
+            Provider provider
+    ) {
+        if(user.getPassword() != null) user.setPassword(passwordEncoder.encode(user.getPassword()));
 
-        if(user.getPassword() != null) {
-            user.setPassword(passwordEncoder.encode(user.getPassword()));
-        }
         user.setProvider(provider);
-        LearnerDTO learnerDTO = new LearnerDTO(request.getLearnerName(),
-                request.getLearnerLastname(),
-                LearningRole.STUDENT);
 
-        // Add new learner to an existing group based on the invite code
+        LearnerDTO learnerDTO = new LearnerDTO(request);
+
         if(request.getInviteCode() != null) {
-            Learner student = assignmentManagerService.addLearner(learnerDTO.toLearner(), request.getInviteCode());
-            return processLearner(user, student);
+            return addLearnerByInviteCode(learnerDTO, request, user);
 
-        // Add new learner and create a new group
         } else if (request.getNureGroupId() != null) {
-            LearnerDTO headman = new LearnerDTO(request.getLearnerName(),
-                    request.getLearnerLastname(),
-                    LearningRole.HEADMAN);
+            return addLearnerToNewGroup(user, request);
 
-            LearningGroup learningGroup = assignmentManagerService.addGroup(request.getNureGroupId(), headman);
-
-            if(learningGroup != null) {
-                user.setLearner(learningGroup.getHeadmen());
-                return userRepository.save(user);
-            } else {
-                return null;
-            }
-
-        // Add new learner without group addition
         } else {
-            Learner student = assignmentManagerService.addFreeLearner(learnerDTO);
-            return processLearner(user, student);
+            return addFreeLearner(learnerDTO, user);
         }
     }
 
-    /**
-     * This method associates a Learner with a User and saves the updated User in the repository.
-     *
-     * @param user The User to be updated with the new Learner.
-     * @param learner The Learner to be associated with the User.
-     * @return The updated User after the association, or null if the Learner is null.
-     */
-    private User processLearner(User user, Learner learner) {
-        if (learner != null) {
-            user.setLearner(learner);
-            return userRepository.save(user);
-        } else {
-            return null;
-        }
+    private User addFreeLearner(LearnerDTO learnerDTO, User user) {
+        Learner learner = Optional.of(learnerService.addFreeLearner(learnerDTO))
+                .orElseThrow(() -> new NullPointerException("Learner not created"));
+
+        user.setLearner(learner);
+        return userRepository.save(user);
+    }
+
+    private User addLearnerToNewGroup(User user, RegistrationRequest request) {
+        LearnerDTO headman = new LearnerDTO(request.getLearnerName(),
+                request.getLearnerLastname(),
+                LearningRole.HEADMAN);
+
+        LearningGroup learningGroup = groupService.createGroup(headman);
+
+        user.setLearner(learningGroup.getHeadmen());
+        return userRepository.save(user);
+    }
+
+    private User addLearnerByInviteCode(LearnerDTO learnerDTO, RegistrationRequest request, User user) {
+        String inviteCode = request.getInviteCode();
+
+        Learner learner = Optional.of(learnerService.addLearner(learnerDTO.toLearner(), inviteCode))
+                .orElseThrow(() -> new NullPointerException("Learner not created"));
+
+        user.setLearner(learner);
+        return userRepository.save(user);
     }
 
     /*
@@ -120,7 +108,6 @@ public class UserService {
      * Find a custom user by their login (username) and password.
      * Returns the custom user if found and the provided password matches the stored password, or null if not found or password doesn't match.
      */
-    @Transactional
     public User findByLoginAndPassword(String login, String password) {
         User user = findByLogin(login);
         if(user != null) {
@@ -129,7 +116,7 @@ public class UserService {
             } else
                 throw new IllegalArgumentException("Incorrect password");
         } else
-            throw new NullPointerException("User with login = " + login + "not found");
+            throw new EntityNotFoundException("User not found");
     }
 
 

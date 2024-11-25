@@ -16,21 +16,22 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AutoUpdater {
 
-    ScheduleService scheduleService;
+  ScheduleService scheduleService;
 
-    // Sending updating requests every 6 hours
-    @Scheduled(fixedRate = 1000 * 60 * 60 * 6, initialDelay = 1000)
-    public void update() {
-        logUpdate("Groups", scheduleService.getGroupsMap());
-        logUpdate("Teachers", scheduleService.getTeachersMap());
-        logUpdate("Auditories", scheduleService.getAuditoriesMap());
-        //logUpdate("Subjects", scheduleService.getSubjectsMap());
-    }
+  // Sending updating requests every 6 hours
+  //@Scheduled(fixedRate = 1000 * 60 * 60 * 6, initialDelay = 1000)
+  public void update() {
+    logUpdate("Groups", scheduleService.getGroupsMap());
+    logUpdate("Teachers", scheduleService.getTeachersMap());
+    logUpdate("Auditories", scheduleService.getAuditoriesMap());
+    //logUpdate("Subjects", scheduleService.getSubjectsMap());
+  }
 
-    private void logUpdate(String dataType, Map<?, ?> dataMap) {
-        if (!dataMap.isEmpty())
-            log.info(dataType + " update complete successful: " + dataMap.size() + " elements.");
-        else
-            log.error(dataType + " update failed");
-    }
+  private void logUpdate(String dataType, Map<?, ?> dataMap) {
+      if (!dataMap.isEmpty()) {
+          log.info("{} update complete successful: {} elements.", dataType, dataMap.size());
+      } else {
+          log.error("{} update failed", dataType);
+      }
+  }
 }

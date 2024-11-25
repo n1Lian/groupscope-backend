@@ -4,6 +4,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.groupscope.assignment_management.entity.Learner;
 import org.groupscope.assignment_management.entity.LearningRole;
+import org.groupscope.security.dto.RegistrationRequest;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -33,6 +34,12 @@ public class LearnerDTO {
         this.lastname = lastname;
     }
 
+    public LearnerDTO(RegistrationRequest request) {
+        this.name = request.getLearnerName();
+        this.lastname = request.getLearnerLastname();
+        this.role = LearningRole.STUDENT;
+    }
+
     public LearnerDTO(String name, String lastname, LearningRole role) {
         this.name = name;
         this.lastname = lastname;
@@ -53,7 +60,7 @@ public class LearnerDTO {
         if(learner.getGrades() != null) {
             List<GradeDTO> gradeDTOList = learner.getGrades().stream()
                     .map(GradeDTO::from)
-                    .collect(Collectors.toList());
+                    .toList();
 
             dto.setGrades(gradeDTOList);
         }

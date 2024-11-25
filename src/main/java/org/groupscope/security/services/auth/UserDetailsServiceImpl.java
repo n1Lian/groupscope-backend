@@ -1,7 +1,6 @@
 package org.groupscope.security.services.auth;
 
 import lombok.extern.slf4j.Slf4j;
-import org.groupscope.assignment_management.dao.AssignmentManagerDAOImpl;
 import org.groupscope.assignment_management.dao.repositories.UserRepository;
 import org.groupscope.security.entity.User;
 import org.hibernate.Hibernate;
@@ -29,8 +28,8 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             throw new UsernameNotFoundException("Unknown user: " + username);
         }
         Hibernate.initialize(user.getLearner().getGrades());
-        if(user.getLearner().getLearningGroup() != null)
-            AssignmentManagerDAOImpl.removeDuplicates(user.getLearner().getLearningGroup().getSubjects());
+//        if(user.getLearner().getLearningGroup() != null)
+//            AssignmentManagerDAOImpl.removeDuplicates(user.getLearner().getLearningGroup().getSubjects());
         return user;
     }
 }

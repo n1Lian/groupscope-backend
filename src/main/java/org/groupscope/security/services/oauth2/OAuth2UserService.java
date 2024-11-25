@@ -1,32 +1,28 @@
 package org.groupscope.security.services.oauth2;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
-//import com.google.api.client.json.jackson2.JacksonFactory;
+import java.io.IOException;
+import java.security.GeneralSecurityException;
+import java.util.Collections;
 import lombok.extern.slf4j.Slf4j;
-import org.groupscope.assignment_management.dao.AssignmentManagerDAOImpl;
+import org.groupscope.security.dto.OAuth2Request;
+import org.groupscope.security.dto.RegistrationRequest;
 import org.groupscope.security.entity.Provider;
 import org.groupscope.security.entity.User;
 import org.groupscope.security.services.RefreshTokenService;
 import org.groupscope.security.services.auth.UserService;
-import org.groupscope.security.dto.OAuth2Request;
-import org.groupscope.security.dto.RegistrationRequest;
 import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.io.IOException;
-import java.security.GeneralSecurityException;
-import java.util.Collections;
-import java.util.Objects;
-
-import static java.util.Objects.requireNonNull;
 
 @Service
 @Slf4j
@@ -36,14 +32,11 @@ public class OAuth2UserService extends DefaultOAuth2UserService {
 
     private final GoogleIdTokenVerifier idTokenVerifier;
 
-    private final RefreshTokenService refreshTokenService;
-
     @Autowired
     public OAuth2UserService(@Value("${spring.security.oauth2.client.registration.google.client-id}") String clientId,
                              UserService userService,
                              RefreshTokenService refreshTokenService) {
         this.userService = userService;
-        this.refreshTokenService = refreshTokenService;
 
         NetHttpTransport transport = new NetHttpTransport();
         JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
@@ -74,8 +67,8 @@ public class OAuth2UserService extends DefaultOAuth2UserService {
 
         Hibernate.initialize(foundedUser.getLearner().getGrades());
 
-        if (foundedUser.getLearner().getLearningGroup() != null)
-            AssignmentManagerDAOImpl.removeDuplicates(foundedUser.getLearner().getLearningGroup().getSubjects());
+//        if (foundedUser.getLearner().getLearningGroup() != null)
+//            AssignmentManagerDAOImpl.removeDuplicates(foundedUser.getLearner().getLearningGroup().getSubjects());
 
         return foundedUser;
     }

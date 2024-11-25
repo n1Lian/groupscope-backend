@@ -39,16 +39,22 @@ public class LearningGroupDTO {
         dto.setHeadmen(LearnerDTO.from(learningGroup.getHeadmen()));
 
         List<SubjectDTO> subjectDTOList = learningGroup.getSubjects().stream()
-                .map(SubjectDTO::from)
-                .peek(subjectDTO -> subjectDTO.setGroup(dto.toString()))
-                .collect(Collectors.toList());
+                .map(subject -> {
+                    var subjectDTO = SubjectDTO.from(subject);
+                    subjectDTO.setGroup(dto.toString());
+                    return subjectDTO;
+                })
+                .toList();
 
         dto.setSubjects(subjectDTOList);
 
         List<LearnerDTO> learnerDTOList = learningGroup.getLearners().stream()
-                .map(LearnerDTO::from)
-                .peek(learnerDTO -> learnerDTO.setLearningGroup(dto.toString()))
-                .collect(Collectors.toList());
+                .map(learner -> {
+                    var learnerDTO = LearnerDTO.from(learner);
+                    learnerDTO.setLearningGroup(dto.toString());
+                    return learnerDTO;
+                })
+                .toList();
 
         dto.setLearners(learnerDTOList);
         return dto;
@@ -61,8 +67,11 @@ public class LearningGroupDTO {
 
         if(!CollectionUtils.isEmpty(this.learners)) {
             List<Learner> learnersList = this.learners.stream()
-                    .map(LearnerDTO::toLearner)
-                    .peek(learner -> learner.setLearningGroup(learningGroup))
+                    .map(learnerDTO -> {
+                        var learner = learnerDTO.toLearner();
+                        learner.setLearningGroup(learningGroup);
+                        return learner;
+                    })
                     .collect(Collectors.toList());
 
             learningGroup.getHeadmen().setLearningGroup(learningGroup);
